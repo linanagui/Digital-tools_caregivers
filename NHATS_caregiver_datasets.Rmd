@@ -1,0 +1,70 @@
+---
+title: "NHATS_caregiver_datasets"
+output: html_document
+date: "2025-03-12"
+---
+
+```{r}
+# Install necessary packages
+install.packages("haven")
+library(haven)
+
+# Load NHATS data files
+nhats_sp <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/NHATS_Round_13_SP_File.sas7bdat") # Sample Person Data
+nhats_op <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/NHATS_Round_13_OP_File.sas7bdat") # Caregiver Data
+nhats_tab <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/NHATS_Round_13_Tab_Act_File.sas7bdat") # Digital tool use data
+
+# Clean column names
+nhats_sp <- nhats_sp %>% clean_names()
+nhats_op <- nhats_op %>% clean_names()
+nhats_tab <- nhats_tab %>% clean_names()
+
+# Check variables
+colnames(nhats_sp)
+colnames(nhats_op)
+colnames(nhats_tab)
+```
+
+
+Select Key NHATS Variables for Readmission & Caregiving Analysis
+
+We extract caregiver involvement, digital tool use, and chronic disease status.
+
+```{r}
+nhats_filtered <- nhats_sp %>%
+  select(
+    spid,                   # Unique respondent ID
+    r13dresid,              # Residential status (home, assisted living, nursing home)
+    #r13proxy,               # Whether a proxy answered (suggests severe disability)
+    hc13disescn1,           # Heart Attack
+    hc13disescn2,           # Heart Disease
+    hc13disescn3,           # High Blood Pressure
+    hc13disescn4,           # Arthritis
+    hc13disescn5,           # Osteoporosis
+    rh13rehabcond,          # Main medical condition for rehab (stroke, joint replacement, COPD, etc.)
+    r13dgender,             # Gender
+    r13d2intvrage,          # Age category
+    #r13income,              # Income
+    #r13educ,                # Education level
+    #r13marital,             # Marital status
+    #r13children             # Number of children (potential caregivers)
+  )
+
+# Check summary
+summary(nhats_filtered)
+```
+
+Merge Caregiver & Digital Tool Use Data
+
+Merge NHATS caregiving data with digital tool usage
+
+```{r}
+nhats_merged <- nhats_filtered %>%
+  left_join(nhats_op, by = "spid") %>%
+  left_join(nhats_tab, by = "spid")
+
+# Check merged dataset
+glimpse(nhats_merged)
+```
+
+Now, we have caregiver data linked to NHATS participants’ chronic conditions and digital tool use.

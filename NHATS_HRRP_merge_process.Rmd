@@ -9,6 +9,83 @@ date: "2025-02-27"
 
 1st: NHATS datasets (caregivers/digital tools)
 
+# Focusing on Digital tools first:
+
+1.NHATS_Round_13_Tab_Act_Frequencies.sas7bdat → Covers assistive devices, telehealth, vision, hearing, mobility
+2.NHATS_Round_13_Accel_Track_Frequencies.sas7bdat → Covers activity tracking & wearables
+3.NHATS_Round_13_Accel_Summ_Frequencies.sas7bdat → Summarizes activity tracking & movement data
+4.NHATS_Round_13_Accel_Det_Frequencies.sas7bdat → Tracks accelerometer wear days & device use
+
+```{r}
+# Load necessary libraries
+library(haven)    # For reading SAS files
+library(dplyr)    # For data manipulation
+library(readr)    # For exporting CSV
+
+# Set file paths (Update these based on your file locations)
+tracker_data <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/Tracker_files/NHATS_Round_13_Tracker_File.sas7bdat")
+tab_act <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/Tab_act_files/NHATS_Round_13_Tab_Act_File.sas7bdat")
+accel_track <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/Accel_track_files/NHATS_Round_13_Accel_Track_File.sas7bdat")
+accel_summ <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/Accel_summ_files/NHATS_Round_13_Accel_Summ_File.sas7bdat")
+accel_det <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/Accel_det_files/NHATS_Round_13_Accel_Det_File.sas7bdat")
+
+# Save as CSV
+# write.csv(tracker_data, "tracker_data.csv", row.names = FALSE)
+# write.csv(tab_act, "tab_act.csv", row.names = FALSE)
+# write.csv(accel_track, "accel_track.csv", row.names = FALSE)
+# write.csv(accel_summ, "accel_summ.csv", row.names = FALSE)
+# write.csv(accel_det, "accel_det.csv", row.names = FALSE)
+
+# Select relevant columns based on codebooks
+tab_act_selected <- tab_act %>%
+  select(spid, vh13vision, vh13hearing) %>%
+  rename(
+    participant_id = spid,
+    uses_vision_aid = vh13vision,   # Vision aid use (glasses, magnifiers)
+    uses_hearing_aid = vh13hearing  # Hearing aid use
+  )
+
+accel_track_selected <- accel_track %>%
+  select(spid, ag13accelerometry, ag13dstatus) %>%
+  rename(
+    participant_id = spid,
+    uses_activity_tracker = ag13accelerometry,  # Whether the participant wore an activity tracker
+    tracker_completion_status = ag13dstatus    # Status of device use
+  )
+
+accel_summ_selected <- accel_summ %>%
+  select(spid, ag13dnumdays, ag13dtac, ag13dsatp)%>%
+  rename(
+    participant_id = spid,
+    activity_tracker_days_worn = ag13dnumdays,  # Number of days the tracker was worn
+    total_activity_counts = ag13dtac,           # Movement data collected by tracker
+    sedentary_to_active_transitions = ag13dsatp # How often participant moved from sitting to active state
+  )
+
+accel_det_selected <- accel_det %>%
+  select(spid, ag13dday, ag13dvalid)%>%
+  rename(
+    participant_id = spid,
+    days_worn_tracker = ag13dday,   # Number of days the tracker was recorded
+    tracker_data_validity = ag13dvalid # Whether the data from tracker was valid
+  )
+
+# Merge datasets using left joins on 'participant_id'
+merged_digital_tools_data <- tab_act_selected %>%
+  left_join(accel_track_selected, by = "participant_id") %>%
+  left_join(accel_summ_selected, by = "participant_id") %>%
+  left_join(accel_det_selected, by = "participant_id")
+
+# View summary of merged dataset
+glimpse(merged_digital_tools_data)
+
+# Save the final merged dataset as a CSV file
+write_csv(merged_digital_tools_data, "NHATS_Merged_Digital_Tools.csv")
+```
+
+
+Next, working on the remaining datasets that focus more on caregivers, patients, and merge them with the cleaned digital tools dataset:
+
 ```{r}
 # Install necessary packages (run once)
 #install.packages(c("haven", "tidyverse", "janitor", "skimr"))
@@ -44,10 +121,10 @@ colnames(nhats_inc)
 
 Select Key NHATS Variables for Readmission & Caregiving Analysis
 
-We extract caregiver involvement, digital tool use, and chronic disease status.
+Extract caregiver involvement, digital tool use, and chronic disease status.
 
 ```{r}
-# Select relevant variables from NHATS_SP (Older Adults Data)
+# Select and rename relevant variables from NHATS_SP (Older Adults Data)
 nhats_sp_filtered <- nhats_sp %>%
   select(
     spid,              # Unique respondent ID
@@ -60,29 +137,80 @@ nhats_sp_filtered <- nhats_sp %>%
     is13prxyrelat,     # Relationship of the proxy caregiver
     is13prxygendr,     # Gender of the proxy caregiver
     em13paydevce1:em13paydevce6  # Assistive technology usage
+  )%>%
+  rename(
+    participant_id = spid,
+    residence_type = r13dresid,         # Residential status (community, assisted living, nursing home)
+    respondent_gender = r13dgender,     # Gender of respondent
+    respondent_age = r13d2intvrage,     # Age of respondent
+    has_heart_disease = hc13disescn1,   
+    has_hypertension = hc13disescn2,
+    has_lung_disease = hc13disescn3,
+    has_diabetes = hc13disescn4,
+    has_cancer = hc13disescn5,
+    has_stroke = hc13disescn6,
+    has_arthritis = hc13disescn7,
+    has_dementia = hc13disescn8,
+    has_depression = hc13disescn9,
+    has_other_chronic = hc13disescn10,
+    caregiver_lives_with_respondent = is13proxlivsp, # Does the caregiver live with respondent?
+    caregiver_relationship = is13prxyrelat, # Relationship of the proxy caregiver
+    caregiver_gender = is13prxygendr, # Gender of the proxy caregiver
+    uses_assistive_tech_1 = em13paydevce1, # Assistive technology device 1
+    uses_assistive_tech_2 = em13paydevce2, # Assistive technology device 2
+    uses_assistive_tech_3 = em13paydevce3, # Assistive technology device 3
+    uses_assistive_tech_4 = em13paydevce4, # Assistive technology device 4
+    uses_assistive_tech_5 = em13paydevce5, # Assistive technology device 5
+    uses_assistive_tech_6 = em13paydevce6  # Assistive technology device 6
   )
+```
 
-# Select relevant variables from NHATS_OP (Caregivers Data)
+
+```{r}
+# Select and rename relevant variables from NHATS_OP (Caregivers Data)
 nhats_op_filtered <- nhats_op %>%
   select(
     spid,             # Unique respondent ID (for merging)
     op13relatnshp,    # Relationship of caregiver to respondent
     op13proxy,        # Whether caregiver answered on behalf of respondent
     op13dage,         # Age of the caregiver
-    #op13prxygendr,    # Gender of the caregiver
     op13numhrsday,    # Hours of caregiving per day
     op13numdayswk     # Days of caregiving per week
-  )
-
-# Select relevant variables from NHATS_Inc (Income & Socioeconomic Data)
-nhats_inc_filtered <- nhats_inc %>%
-  select(
-    spid,              # Unique respondent ID (for merging)
-    ia13toincimif     # Imputed total income
+  ) %>%
+  rename(
+    participant_id = spid,
+    caregiver_relationship_to_respondent = op13relatnshp, # Relationship of caregiver to respondent
+    caregiver_answered_for_respondent = op13proxy, # Whether caregiver answered on behalf of respondent
+    caregiver_age = op13dage, # Age of the caregiver
+    caregiver_hours_per_day = op13numhrsday, # Hours of caregiving per day
+    caregiver_days_per_week = op13numdayswk # Days of caregiving per week
   )
 ```
 
 
+```{r}
+# Select and rename relevant variables from NHATS_Inc (Income & Socioeconomic Data)
+nhats_inc_filtered <- nhats_inc %>%
+  select(
+    spid,              # Unique respondent ID (for merging)
+    ia13toincimif      # Imputed total income
+  ) %>%
+  rename(
+    participant_id = spid,
+    total_income = ia13toincimif # Imputed total income
+  )
+```
+
+```{r}
+# View summary of cleaned datasets
+glimpse(nhats_sp_filtered)
+glimpse(nhats_op_filtered)
+glimpse(nhats_inc_filtered)
+```
+
+
+
+-----------------------------
 
 Merge Caregiver & Digital Tool Use Data
 
@@ -91,9 +219,9 @@ Merge NHATS caregiving data with digital tool usage
 ```{r}
 # Merge NHATS_SP with NHATS_OP (Caregiver + Care Recipient Data)
 nhats_merged <- nhats_sp_filtered %>%
-  left_join(nhats_op_filtered, by = "spid") %>%
-  left_join(merged_digital_tools, by = "spid") %>%
-  left_join(nhats_inc_filtered, by = "spid")
+  left_join(nhats_op_filtered, by = "participant_id") %>%
+  left_join(merged_digital_tools, by = "participant_id") %>%
+  left_join(nhats_inc_filtered, by = "participant_id")
 
 # Check merged dataset
 glimpse(nhats_merged)
@@ -126,11 +254,12 @@ write_csv(nhats_cleaned, "NHATS_Cleaned_Caregivers_and_DigitalTools.csv")
 ```
 
 
+---------------------------------------
 
 
 
 
-2nd DATASET:
+2nd DATASET "HRRP":
 
 ```{r}
 #install.packages(c("tidyverse", "janitor", "readr"))
@@ -170,83 +299,51 @@ hrrp_filtered <- hrrp_data %>%
 summary(hrrp_filtered)
 
 # Save the final merged dataset as a CSV file
-write_csv(hrrp_filtered, "HRRP_cleaned_data.csv")
+# write_csv(hrrp_filtered, "HRRP_cleaned_data.csv")
 ```
 
 
+
+
+
+
+
+
+
+
+--------------------------------------------
 
 
 3rd: Merging NHATS and HRRP (direct merge is not possible, so it can be done using condition level aggregation):
 
-Identify a Common Merge Strategy
-
-NHATS dataset provides:
-	•	Caregiver involvement & digital tool use for older adults.
-	•	Chronic disease prevalence (e.g., heart failure, COPD, heart attack).
-
-HRRP dataset provides:
-	•	Hospital-level readmission rates by condition.
-	•	State-level variations in hospital performance.
-
-
-Aggregate NHATS Data by Condition
-Summarize the NHATS dataset to show the percentage of participants with each condition.
-```{r}
-# Summarize NHATS data by chronic condition
-nhats_summary <- nhats_cleaned %>%
-  summarise(
-    percent_heart_attack = mean(hc13disescn1 == 1, na.rm = TRUE),  # Heart Attack (AMI)
-    percent_heart_failure = mean(hc13disescn2 == 1, na.rm = TRUE),  # Heart Failure
-    percent_copd = mean(hc13disescn7 == 1, na.rm = TRUE)  # COPD
-  ) %>%
-  pivot_longer(cols = everything(), names_to = "condition_name", values_to = "percent_population")
-
-# Create a mapping between NHATS conditions & HRRP readmission measures
-condition_mapping <- tibble(
-  condition_name = c("percent_heart_attack", "percent_heart_failure", "percent_copd"),
-  measure_name = c("READM-30-AMI-HRRP", "READM-30-HF-HRRP", "READM-30-COPD-HRRP")
-)
-
-# Merge NHATS condition summaries with HRRP readmission data
-nhats_summary <- nhats_summary %>%
-  left_join(condition_mapping, by = "condition_name")
-```
-
-
-Summarize HRRP Data by Condition
-Ensure readmission ratios are numeric and calculate average readmission rates.
-```{r}
-# Convert readmission ratio to numeric
-hrrp_filtered <- hrrp_filtered %>%
-  mutate(across(c(excess_readmission_ratio, predicted_readmission_rate, expected_readmission_rate, number_of_readmissions), as.numeric))
-
-# Summarize HRRP data by condition
-hrrp_summary <- hrrp_filtered %>%
-  group_by(measure_name) %>%
-  summarise(
-    avg_readmission_ratio = mean(excess_readmission_ratio, na.rm = TRUE),
-    avg_number_of_readmissions = mean(number_of_readmissions, na.rm = TRUE)
-  )
-```
-
-Merge NHATS & HRRP Data
-We now merge NHATS condition-level data with HRRP readmission rates.
-```{r}
-# Merge NHATS caregiving trends with HRRP hospital readmission rates
-merged_data <- nhats_summary %>%
-  left_join(hrrp_summary, by = "measure_name")
-
-# View the merged dataset
-glimpse(merged_data)
-```
-
-
+Merge by Chronic Condition & State
+	•	This allows us to analyze how digital tool adoption by caregivers (NHATS) relates to hospital readmission rates (HRRP) for specific conditions.
+	•	This approach will enable state-level insights about digital health tools in caregiving and their relationship with hospital readmissions.
 
 ```{r}
-# Save as CSV
-write_csv(merged_data, "NHATS_HRRP_Merged.csv")
+# Load necessary libraries
+library(dplyr)
+library(readr)
 
-# Save as RData for further analysis
-save(merged_data, file = "NHATS_HRRP_Merged.RData")
+# Standardize column names for merging
+nhats_cleaned_data <- nhats_cleaned %>%
+  rename(state = State, chronic_condition = Condition)  # Adjust if needed
+
+hrrp_filtered_data <- hrrp_filtered %>%
+  rename(state = state, chronic_condition = measure_name)  # Adjust if needed
+
+# Merge datasets by state and condition
+merged_datasets <- nhats_cleaned_data %>%
+  inner_join(hrrp_filtered_data, by = c("state", "chronic_condition"))
+
+# View summary of merged dataset
+summary(merged_datasets)
+
+# Save the merged dataset
+write_csv(merged_datasets, "Merged_NHATS_HRRP_Data.csv")
+
+# Display first few rows
+head(merged_datasets)
 ```
+
 

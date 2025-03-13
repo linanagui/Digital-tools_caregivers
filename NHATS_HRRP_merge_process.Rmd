@@ -1,0 +1,252 @@
+---
+title: "NHATS_caregiver_HRRP_datasets"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+date: "2025-02-27"
+---
+
+1st: NHATS datasets (caregivers/digital tools)
+
+```{r}
+# Install necessary packages (run once)
+#install.packages(c("haven", "tidyverse", "janitor", "skimr"))
+
+#install.packages("tinytex")
+#tinytex::install_tinytex()  # Install full LaTeX distribution
+
+# Load libraries
+library(haven)      # To read .sas7bdat files
+library(tidyverse)  # For data wrangling
+library(janitor)    # For cleaning column names
+library(skimr)      # For summarizing datasets
+
+# Load NHATS data files
+nhats_sp <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/SP_files/NHATS_Round_13_SP_File.sas7bdat") # Sample Person Data
+nhats_op <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/OP_files/NHATS_Round_13_OP_File.sas7bdat") # Caregiver Data
+merged_digital_tools <- read_csv("~/desktop/NHATS_Merged_Digital_tools.csv") # Digital tool use data
+inc_path <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/Inc_files/NHATS_R13_Int_Inc_Imp_File.sas7bdat")
+
+# Clean column names
+nhats_sp <- nhats_sp %>% clean_names()
+nhats_op <- nhats_op %>% clean_names()
+merged_digital_tools <- merged_digital_tools %>% clean_names()
+nhats_inc <- inc_path %>% clean_names()  # Income & Socioeconomic Data
+
+# Check variables
+colnames(nhats_sp)
+colnames(nhats_op)
+colnames(merged_digital_tools)
+colnames(nhats_inc)
+```
+
+
+Select Key NHATS Variables for Readmission & Caregiving Analysis
+
+We extract caregiver involvement, digital tool use, and chronic disease status.
+
+```{r}
+# Select relevant variables from NHATS_SP (Older Adults Data)
+nhats_sp_filtered <- nhats_sp %>%
+  select(
+    spid,              # Unique respondent ID
+    r13dresid,         # Residential status (community, assisted living, nursing home)
+    r13dgender,        # Gender of respondent
+    r13d2intvrage,     # Age of respondent
+    hc13disescn1, hc13disescn2, hc13disescn3, hc13disescn4, hc13disescn5, 
+    hc13disescn6, hc13disescn7, hc13disescn8, hc13disescn9, hc13disescn10,  # Chronic diseases
+    is13proxlivsp,     # Does caregiver live with respondent?
+    is13prxyrelat,     # Relationship of the proxy caregiver
+    is13prxygendr,     # Gender of the proxy caregiver
+    em13paydevce1:em13paydevce6  # Assistive technology usage
+  )
+
+# Select relevant variables from NHATS_OP (Caregivers Data)
+nhats_op_filtered <- nhats_op %>%
+  select(
+    spid,             # Unique respondent ID (for merging)
+    op13relatnshp,    # Relationship of caregiver to respondent
+    op13proxy,        # Whether caregiver answered on behalf of respondent
+    op13dage,         # Age of the caregiver
+    #op13prxygendr,    # Gender of the caregiver
+    op13numhrsday,    # Hours of caregiving per day
+    op13numdayswk     # Days of caregiving per week
+  )
+
+# Select relevant variables from NHATS_Inc (Income & Socioeconomic Data)
+nhats_inc_filtered <- nhats_inc %>%
+  select(
+    spid,              # Unique respondent ID (for merging)
+    ia13toincimif     # Imputed total income
+  )
+```
+
+
+
+Merge Caregiver & Digital Tool Use Data
+
+Merge NHATS caregiving data with digital tool usage
+
+```{r}
+# Merge NHATS_SP with NHATS_OP (Caregiver + Care Recipient Data)
+nhats_merged <- nhats_sp_filtered %>%
+  left_join(nhats_op_filtered, by = "spid") %>%
+  left_join(merged_digital_tools, by = "spid") %>%
+  left_join(nhats_inc_filtered, by = "spid")
+
+# Check merged dataset
+glimpse(nhats_merged)
+```
+
+Handle Missing Values
+NHATS datasets use special codes (-9, -1) for missing values, which we replace with NA.
+```{r}
+# Replace missing values (-9 and -1) with NA
+nhats_cleaned <- nhats_merged %>%
+  mutate(across(everything(), ~ na_if(.x, -9))) %>%
+  mutate(across(everything(), ~ na_if(.x, -1)))
+
+# Check missing values summary
+colSums(is.na(nhats_cleaned))
+```
+
+
+
+Now, we have caregiver data linked to NHATS participants’ chronic conditions and digital tool use.
+
+
+Save the Cleaned & Merged Dataset
+```{r}
+# Save as CSV
+write_csv(nhats_cleaned, "NHATS_Cleaned_Caregivers_and_DigitalTools.csv")
+
+# Save as RData for easy reloading
+# save(nhats_cleaned, file = "NHATS_Cleaned_Caregivers_DigitalTools.RData")
+```
+
+
+
+
+
+
+2nd DATASET:
+
+```{r}
+#install.packages(c("tidyverse", "janitor", "readr"))
+library(tidyverse)
+library(janitor)
+
+# Load HRRP dataset (adjust file path if needed)
+hrrp_data <- read_csv("~/desktop/FY_2025_Hospital_Readmissions.csv")
+```
+
+```{r}
+# Clean column names
+hrrp_data <- hrrp_data %>% clean_names()
+
+# View first few rows
+head(hrrp_data)
+
+# Check unique readmission measures
+unique(hrrp_data$measure_name)
+```
+
+# Filter HRRP Data for Relevant Conditions
+Since we are focusing on heart failure, COPD, and heart attack, we extract only those rows:
+```{r}
+hrrp_filtered <- hrrp_data %>%
+  filter(measure_name %in% c(
+    "READM-30-HF-HRRP",   # Heart Failure
+    "READM-30-AMI-HRRP",  # Acute Myocardial Infarction (Heart Attack)
+    "READM-30-COPD-HRRP", # Chronic Obstructive Pulmonary Disease
+    "READM-30-PN-HRRP",   # Pneumonia
+    "READM-30-CABG-HRRP", # Coronary Artery Bypass Graft Surgery
+    "READM-30-THA-TKA-HRRP" # Total Hip/Knee Arthroplasty
+  )) %>%
+  select(facility_name, state, measure_name, excess_readmission_ratio, predicted_readmission_rate, expected_readmission_rate, number_of_readmissions)
+
+# View summary
+summary(hrrp_filtered)
+
+# Save the final merged dataset as a CSV file
+write_csv(hrrp_filtered, "HRRP_cleaned_data.csv")
+```
+
+
+
+
+3rd: Merging NHATS and HRRP (direct merge is not possible, so it can be done using condition level aggregation):
+
+Identify a Common Merge Strategy
+
+NHATS dataset provides:
+	•	Caregiver involvement & digital tool use for older adults.
+	•	Chronic disease prevalence (e.g., heart failure, COPD, heart attack).
+
+HRRP dataset provides:
+	•	Hospital-level readmission rates by condition.
+	•	State-level variations in hospital performance.
+
+
+Aggregate NHATS Data by Condition
+Summarize the NHATS dataset to show the percentage of participants with each condition.
+```{r}
+# Summarize NHATS data by chronic condition
+nhats_summary <- nhats_cleaned %>%
+  summarise(
+    percent_heart_attack = mean(hc13disescn1 == 1, na.rm = TRUE),  # Heart Attack (AMI)
+    percent_heart_failure = mean(hc13disescn2 == 1, na.rm = TRUE),  # Heart Failure
+    percent_copd = mean(hc13disescn7 == 1, na.rm = TRUE)  # COPD
+  ) %>%
+  pivot_longer(cols = everything(), names_to = "condition_name", values_to = "percent_population")
+
+# Create a mapping between NHATS conditions & HRRP readmission measures
+condition_mapping <- tibble(
+  condition_name = c("percent_heart_attack", "percent_heart_failure", "percent_copd"),
+  measure_name = c("READM-30-AMI-HRRP", "READM-30-HF-HRRP", "READM-30-COPD-HRRP")
+)
+
+# Merge NHATS condition summaries with HRRP readmission data
+nhats_summary <- nhats_summary %>%
+  left_join(condition_mapping, by = "condition_name")
+```
+
+
+Summarize HRRP Data by Condition
+Ensure readmission ratios are numeric and calculate average readmission rates.
+```{r}
+# Convert readmission ratio to numeric
+hrrp_filtered <- hrrp_filtered %>%
+  mutate(across(c(excess_readmission_ratio, predicted_readmission_rate, expected_readmission_rate, number_of_readmissions), as.numeric))
+
+# Summarize HRRP data by condition
+hrrp_summary <- hrrp_filtered %>%
+  group_by(measure_name) %>%
+  summarise(
+    avg_readmission_ratio = mean(excess_readmission_ratio, na.rm = TRUE),
+    avg_number_of_readmissions = mean(number_of_readmissions, na.rm = TRUE)
+  )
+```
+
+Merge NHATS & HRRP Data
+We now merge NHATS condition-level data with HRRP readmission rates.
+```{r}
+# Merge NHATS caregiving trends with HRRP hospital readmission rates
+merged_data <- nhats_summary %>%
+  left_join(hrrp_summary, by = "measure_name")
+
+# View the merged dataset
+glimpse(merged_data)
+```
+
+
+
+```{r}
+# Save as CSV
+write_csv(merged_data, "NHATS_HRRP_Merged.csv")
+
+# Save as RData for further analysis
+save(merged_data, file = "NHATS_HRRP_Merged.RData")
+```
+

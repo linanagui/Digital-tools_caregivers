@@ -1,0 +1,61 @@
+---
+title: "Digital_tools_cleaned_NHATS"
+output: html_document
+date: "2025-03-13"
+---
+
+1.NHATS_Round_13_Tab_Act_Frequencies.sas7bdat → Covers assistive devices, telehealth, vision, hearing, mobility
+2.NHATS_Round_13_Accel_Track_Frequencies.sas7bdat → Covers activity tracking & wearables
+3.NHATS_Round_13_Accel_Summ_Frequencies.sas7bdat → Summarizes activity tracking & movement data
+4.NHATS_Round_13_Accel_Det_Frequencies.sas7bdat → Tracks accelerometer wear days & device use
+
+```{r}
+# Load necessary libraries
+library(haven)    # For reading SAS files
+library(dplyr)    # For data manipulation
+library(readr)    # For exporting CSV
+
+# Set file paths (Update these based on your file locations)
+tracker_data <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/Tracker_files/NHATS_Round_13_Tracker_File.sas7bdat")
+tab_act <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/Tab_act_files/NHATS_Round_13_Tab_Act_File.sas7bdat")
+accel_track <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/Accel_track_files/NHATS_Round_13_Accel_Track_File.sas7bdat")
+accel_summ <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/Accel_summ_files/NHATS_Round_13_Accel_Summ_File.sas7bdat")
+accel_det <- read_sas("~/desktop/NHATS_R13_Final_Release_SAS/Accel_det_files/NHATS_Round_13_Accel_Det_File.sas7bdat")
+
+# Save as CSV
+# write.csv(tracker_data, "tracker_data.csv", row.names = FALSE)
+# write.csv(tab_act, "tab_act.csv", row.names = FALSE)
+# write.csv(accel_track, "accel_track.csv", row.names = FALSE)
+# write.csv(accel_summ, "accel_summ.csv", row.names = FALSE)
+# write.csv(accel_det, "accel_det.csv", row.names = FALSE)
+
+# Select relevant columns based on codebooks
+tab_act_selected <- tab_act %>%
+  select(spid, vh13vision, vh13hearing)
+#vh13vision (vision aid use), vh13hearing (hearing aids)
+
+accel_track_selected <- accel_track %>%
+  select(spid, ag13accelerometry, ag13dstatus)
+#ag13accelerometry (device worn), ag13dstatus (completion status)
+
+accel_summ_selected <- accel_summ %>%
+  select(spid, ag13dnumdays, ag13dtac, ag13dsatp)
+#ag13dnumdays (days worn), ag13dtac (total activity), ag13dsatp (sedentary to active transitions)
+
+accel_det_selected <- accel_det %>%
+  select(spid, ag13dday, ag13dvalid)
+# ag13dday (days worn), ag13dvalid (validity check)
+
+# Merge datasets using left joins on 'spid'
+merged_digital_tools_data <- tab_act_selected %>%
+  left_join(accel_track_selected, by = "spid") %>%
+  left_join(accel_summ_selected, by = "spid") %>%
+  left_join(accel_det_selected, by = "spid")
+
+# View summary of merged dataset
+glimpse(merged_digital_tools_data)
+
+# Save the final merged dataset as a CSV file
+write_csv(merged_digital_tools_data, "NHATS_Merged_Digital_Tools.csv")
+```
+

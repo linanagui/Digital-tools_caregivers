@@ -179,7 +179,7 @@ nhats_sp_filtered <- nhats_sp %>%
     social_media_use = te13socialnet        # Uses social networking sites
   ) %>%
 
-  # ✅ Convert values to meaningful labels
+  # Convert values to meaningful labels
   mutate(
     residence_type = case_when(
       residence_type == 1 ~ "Community",
@@ -455,7 +455,7 @@ nhats_cleaned <- nhats_merged %>%
 Save the Cleaned & Merged Dataset
 ```{r}
 # Save as CSV
-write_csv(nhats_cleaned, "NHATS_Cleaned_Caregivers_and_DigitalTools.csv")
+# write_csv(nhats_cleaned, "NHATS_Cleaned_Caregivers_and_DigitalTools.csv")
 
 # Save as RData for easy reloading
 # save(nhats_cleaned, file = "NHATS_Cleaned_Caregivers_DigitalTools.RData")
@@ -505,9 +505,27 @@ hrrp_filtered <- hrrp_data %>%
 
 # View summary
 summary(hrrp_filtered)
+```
 
+```{r}
+# Create Binary Indicator Columns for Each Chronic Condition
+hrrp_filtered <- hrrp_filtered %>%
+  mutate(
+    heart_failure = if_else(measure_name == "READM-30-HF-HRRP", 1, 0),
+    heart_attack = if_else(measure_name == "READM-30-AMI-HRRP", 1, 0),
+    copd = if_else(measure_name == "READM-30-COPD-HRRP", 1, 0),
+    pneumonia = if_else(measure_name == "READM-30-PN-HRRP", 1, 0),
+    cabg = if_else(measure_name == "READM-30-CABG-HRRP", 1, 0),
+    hip_knee_replacement = if_else(measure_name == "READM-30-HIP-KNEE-HRRP", 1, 0)
+  )
+
+summary(hrrp_filtered)
+```
+
+
+```{r}
 # Save the final merged dataset as a CSV file
-# write_csv(hrrp_filtered, "HRRP_cleaned_data.csv")
+write_csv(hrrp_filtered, "HRRP_cleaned_data.csv")
 ```
 
 
@@ -524,49 +542,47 @@ summary(hrrp_filtered)
 
 3rd: Merging NHATS and HRRP (direct merge is not possible, so it can be done using condition level aggregation):
 
-Merge by Chronic Conditions:
-	•	NHATS Chronic Condition Variables (has_heart_disease, has_hypertension, has_lung_disease, etc.)
-	•	HRRP Measure Name (measure_name: “READM-30-HF-HRRP”, “READM-30-AMI-HRRP”, etc.)
-
 The two datasets here to use:
 hrrp_filtered
 nhats_cleaned
 
-```{r}
-# Load necessary libraries
-library(dplyr)
-library(readr)
-
-# Create a mapping of NHATS conditions to HRRP measure names
-condition_map <- tibble(
-  nhats_condition = c("has_heart_disease", "has_lung_disease", "has_diabetes",
-                      "has_cancer", "has_stroke", "has_arthritis"),
-  hrrp_measure = c("READM-30-HF-HRRP", "READM-30-COPD-HRRP", "READM-30-PN-HRRP",
-                   "READM-30-AMI-HRRP", "READM-30-CABG-HRRP", "READM-30-THA-TKA-HRRP")
-)
-```
 
 
 ```{r}
-# # Reshape NHATS data to long format for merging
-# nhats_long <- nhats_cleaned %>%
-#   pivot_longer(cols = starts_with("has_"),
-#                names_to = "nhats_condition",
-#                values_to = "has_condition") %>%
-#   filter(has_condition == 1) %>% # Keep only rows where the person has the condition
-#   left_join(condition_map, by = "nhats_condition")  # Map to HRRP condition names
+# standardize NHATS Chronic Condition Column Names to Match HRRP
+nhats_data <- nhats_cleaned %>%
+  rename(
+    heart_failure = has_heart_disease,
+    heart_attack = has_heart_disease,  # Since NHATS does not separate HF and AMI
+    copd = has_lung_disease, 
+    hip_knee_replacement = has_arthritis  # Arthritis as a proxy for joint replacement
+  )
+
+# Aggregate NHATS Data by Chronic Condition
+nhats_summary <- nhats_data %>%
+  summarise(
+    avg_caregiver_hours = mean(caregiver_hours_per_day, na.rm = TRUE),
+    avg_caregiver_days = mean(caregiver_days_per_week, na.rm = TRUE),
+    telehealth_usage = mean(telehealth_use == "Yes", na.rm = TRUE),
+    activity_tracker_usage = mean(uses_activity_tracker == "Yes", na.rm = TRUE),
+    smart_pill_usage = mean(orders_prescriptions_online == "Yes", na.rm = TRUE),
+    total_patients = n(),
+    #heart_failure = mean(heart_failure, na.rm = TRUE),
+    heart_attack = mean(heart_attack, na.rm = TRUE),
+    copd = mean(copd, na.rm = TRUE),
+    hip_knee_replacement = mean(hip_knee_replacement, na.rm = TRUE)
+  )
+
+#  Merge NHATS Summary with HRRP Data (
+
+
+
+
+
+
 ```
 
-```{r}
 
-```
-
-	
-```{r}
-# Merge with HRRP based on condition
-merged_data <- nhats_long %>%
-  left_join(hrrp_filtered, by = c("hrrp_measure" = "measure_name"))
-```
 
 
 ```{r}

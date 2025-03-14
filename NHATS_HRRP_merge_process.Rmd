@@ -136,8 +136,12 @@ nhats_sp_filtered <- nhats_sp %>%
     is13proxlivsp,     # Does caregiver live with respondent?
     is13prxyrelat,     # Relationship of the proxy caregiver
     is13prxygendr,     # Gender of the proxy caregiver
-    em13paydevce1:em13paydevce6  # Assistive technology usage
-  )%>%
+    em13paydevce1:em13paydevce6,  # Assistive technology usage
+    te13intrntmd2, te13intrntmd3, te13intrntmd4, 
+    te13computer, te13tablet, te13emailtext, te13online, 
+    te13shoponli1, te13shoponli2, te13shoponli3, te13socialnet
+  ) %>%
+  
   rename(
     participant_id = spid,
     residence_type = r13dresid,         # Residential status (community, assisted living, nursing home)
@@ -156,15 +160,27 @@ nhats_sp_filtered <- nhats_sp %>%
     caregiver_lives_with_respondent = is13proxlivsp, # Does the caregiver live with respondent?
     caregiver_relationship = is13prxyrelat, # Relationship of the proxy caregiver
     caregiver_gender = is13prxygendr, # Gender of the proxy caregiver
-    uses_assistive_tech_1 = em13paydevce1, # Assistive technology device 1
-    uses_assistive_tech_2 = em13paydevce2, # Assistive technology device 2
-    uses_assistive_tech_3 = em13paydevce3, # Assistive technology device 3
-    uses_assistive_tech_4 = em13paydevce4, # Assistive technology device 4
-    uses_assistive_tech_5 = em13paydevce5, # Assistive technology device 5
-    uses_assistive_tech_6 = em13paydevce6  # Assistive technology device 6
+    vision_aids = em13paydevce1, # Glasses, magnifiers
+    hearing_aids = em13paydevce2, # Hearing aids
+    cane = em13paydevce3, # Cane
+    walker = em13paydevce4, # Walker
+    wheelchair = em13paydevce5, # Wheelchair
+    other_mobility_aid = em13paydevce6, # Grab bars, raised toilet seats
+    telehealth_use = te13intrntmd2,         # Used internet for telehealth
+    insurance_info_online = te13intrntmd3,  # Looked up insurance info online
+    health_info_online = te13intrntmd4,     # Searched for health information online
+    has_computer = te13computer,            # Owns and uses a computer
+    has_tablet = te13tablet,                # Owns and uses a tablet
+    uses_email_or_text = te13emailtext,     # Uses email or text messaging
+    uses_online_services = te13online,      # Uses a computer for online tasks
+    orders_groceries_online = te13shoponli1,# Orders groceries online
+    online_banking = te13shoponli2,         # Uses online banking
+    orders_prescriptions_online = te13shoponli3, # Orders prescription refills online
+    social_media_use = te13socialnet        # Uses social networking sites
   ) %>%
-#convert vaues to meaningful labels
-mutate(
+
+  # ✅ Convert values to meaningful labels
+  mutate(
     residence_type = case_when(
       residence_type == 1 ~ "Community",
       residence_type == 2 ~ "Residential Care",
@@ -185,7 +201,40 @@ mutate(
       respondent_age == 5 ~ "85-89",
       respondent_age == 6 ~ "90+",
       TRUE ~ NA_character_
-    )
+    ),
+    caregiver_lives_with_respondent = case_when(
+      caregiver_lives_with_respondent == 1 ~ "Yes",
+      caregiver_lives_with_respondent == 2 ~ "No",
+      TRUE ~ NA_character_
+    ),
+    caregiver_relationship = case_when(
+      caregiver_relationship == 1 ~ "Spouse/Partner",
+      caregiver_relationship == 2 ~ "Child",
+      caregiver_relationship == 3 ~ "Sibling",
+      caregiver_relationship == 4 ~ "Other Relative",
+      caregiver_relationship == 5 ~ "Friend/Neighbor",
+      caregiver_relationship == 6 ~ "Paid Caregiver",
+      caregiver_relationship == 7 ~ "Other Non-Relative",
+      caregiver_relationship == 8 ~ "Unknown",
+      TRUE ~ NA_character_
+    ),
+    caregiver_gender = case_when(
+      caregiver_gender == 1 ~ "Male",
+      caregiver_gender == 2 ~ "Female",
+      TRUE ~ NA_character_
+    ),
+    # Convert assistive technology usage (1=Yes, 2=No, -9=Missing)
+    across(starts_with("vision_aids"):starts_with("other_mobility_aid"), ~ case_when(
+      . == 1 ~ "Yes",
+      . == 2 ~ "No",
+      TRUE ~ "Missing"
+    )),
+    # Convert digital tool usage (1=Yes, 2=No, -9=Missing)
+    across(starts_with("telehealth_use"):starts_with("social_media_use"), ~ case_when(
+      . == 1 ~ "Yes",
+      . == 2 ~ "No",
+      TRUE ~ "Missing"
+    ))
   )
 ```
 

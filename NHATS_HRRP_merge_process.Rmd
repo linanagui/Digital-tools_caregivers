@@ -162,6 +162,30 @@ nhats_sp_filtered <- nhats_sp %>%
     uses_assistive_tech_4 = em13paydevce4, # Assistive technology device 4
     uses_assistive_tech_5 = em13paydevce5, # Assistive technology device 5
     uses_assistive_tech_6 = em13paydevce6  # Assistive technology device 6
+  ) %>%
+#convert vaues to meaningful labels
+mutate(
+    residence_type = case_when(
+      residence_type == 1 ~ "Community",
+      residence_type == 2 ~ "Residential Care",
+      residence_type == 3 ~ "Nursing Home",
+      residence_type == 4 ~ "Assisted Living",
+      TRUE ~ NA_character_
+    ),
+    respondent_gender = case_when(
+      respondent_gender == 1 ~ "Male",
+      respondent_gender == 2 ~ "Female",
+      TRUE ~ NA_character_
+    ),
+    respondent_age = case_when(
+      respondent_age == 1 ~ "65-69",
+      respondent_age == 2 ~ "70-74",
+      respondent_age == 3 ~ "75-79",
+      respondent_age == 4 ~ "80-84",
+      respondent_age == 5 ~ "85-89",
+      respondent_age == 6 ~ "90+",
+      TRUE ~ NA_character_
+    )
   )
 ```
 
@@ -184,6 +208,42 @@ nhats_op_filtered <- nhats_op %>%
     caregiver_age = op13dage, # Age of the caregiver
     caregiver_hours_per_day = op13numhrsday, # Hours of caregiving per day
     caregiver_days_per_week = op13numdayswk # Days of caregiving per week
+  )%>%
+  mutate(
+    caregiver_relationship_to_respondent = case_when(
+      caregiver_relationship_to_respondent == 1 ~ "Spouse/Partner",
+      caregiver_relationship_to_respondent == 2 ~ "Child",
+      caregiver_relationship_to_respondent == 3 ~ "Sibling",
+      caregiver_relationship_to_respondent == 4 ~ "Other Relative",
+      caregiver_relationship_to_respondent == 5 ~ "Friend/Neighbor",
+      caregiver_relationship_to_respondent == 6 ~ "Paid Caregiver",
+      caregiver_relationship_to_respondent == 7 ~ "Other Non-Relative",
+      caregiver_relationship_to_respondent == 8 ~ "Unknown",
+      TRUE ~ NA_character_
+    ),
+    
+    caregiver_answered_for_respondent = case_when(
+      caregiver_answered_for_respondent == 1 ~ "Yes",
+      caregiver_answered_for_respondent == 2 ~ "No",
+      TRUE ~ NA_character_
+    ),
+    
+    caregiver_age = case_when(
+      caregiver_age == -9 ~ NA_real_,  # Replace missing values
+      TRUE ~ caregiver_age  # Keep actual age values
+    ),
+    
+    caregiver_hours_per_day = case_when(
+      caregiver_hours_per_day == -9 ~ NA_real_,
+      caregiver_hours_per_day == -1 ~ NA_real_,
+      TRUE ~ caregiver_hours_per_day
+    ),
+    
+    caregiver_days_per_week = case_when(
+      caregiver_days_per_week == -9 ~ NA_real_,
+      caregiver_days_per_week == -1 ~ NA_real_,
+      TRUE ~ caregiver_days_per_week
+    )
   )
 ```
 
@@ -198,6 +258,14 @@ nhats_inc_filtered <- nhats_inc %>%
   rename(
     participant_id = spid,
     total_income = ia13toincimif # Imputed total income
+  ) %>%
+  mutate(
+    total_income = case_when(
+      total_income == -9 ~ NA_real_,  # -9 means missing data
+      total_income == -1 ~ NA_real_,  # -1 means inapplicable
+      total_income == 9999999 ~ NA_real_,  # Placeholder for unknown/missing
+      TRUE ~ total_income  # Keep actual income values
+    )
   )
 ```
 
@@ -231,17 +299,108 @@ Handle Missing Values
 NHATS datasets use special codes (-9, -1) for missing values, which we replace with NA.
 ```{r}
 # Replace missing values (-9 and -1) with NA
-nhats_cleaned <- nhats_merged %>%
-  mutate(across(everything(), ~ na_if(.x, -9))) %>%
-  mutate(across(everything(), ~ na_if(.x, -1)))
+# nhats_cleaned <- nhats_merged %>%
+#   mutate(across(everything(), ~ na_if(.x, -9))) %>%
+#   mutate(across(everything(), ~ na_if(.x, -1)))
 
 # Check missing values summary
-colSums(is.na(nhats_cleaned))
+# colSums(is.na(nhats_cleaned))
 ```
 
 
 
 Now, we have caregiver data linked to NHATS participants’ chronic conditions and digital tool use.
+
+```{r}
+nhats_cleaned <- nhats_merged %>%
+  mutate(
+    # Chronic Conditions (Yes/No/Missing)
+    across(starts_with("has_"), ~ case_when(
+      . == 1 ~ "Yes",
+      . == 2 ~ "No",
+      . %in% c(-7, -8, -9, -1) ~ "Missing",
+      TRUE ~ as.character(.)
+    )),
+    
+    # Caregiver Relationship
+    caregiver_relationship = case_when(
+      caregiver_relationship == 1 ~ "Spouse/Partner",
+      caregiver_relationship == 2 ~ "Child",
+      caregiver_relationship == 3 ~ "Sibling",
+      caregiver_relationship == 4 ~ "Other Relative",
+      caregiver_relationship == 5 ~ "Friend/Neighbor",
+      caregiver_relationship == 6 ~ "Paid Caregiver",
+      caregiver_relationship == 7 ~ "Other Non-Relative",
+      caregiver_relationship == 8 ~ "Unknown",
+      TRUE ~ "Missing"
+    ),
+
+    # Caregiver Gender
+    caregiver_gender = case_when(
+      caregiver_gender == 1 ~ "Male",
+      caregiver_gender == 2 ~ "Female",
+      TRUE ~ "Missing"
+    ),
+
+    # Caregiver Answered on Behalf
+    caregiver_answered_for_respondent = case_when(
+      is.na(caregiver_answered_for_respondent) ~ "No",
+      TRUE ~ "Yes"
+    ),
+
+    # Caregiver Age (Convert Missing)
+    caregiver_age = case_when(
+      caregiver_age %in% c(-1, -7) ~ "Missing",
+      TRUE ~ as.character(caregiver_age)
+    ),
+
+    # Caregiver Hours Per Day & Days Per Week (Convert Missing)
+    caregiver_hours_per_day = case_when(
+      caregiver_hours_per_day %in% c(-7, -8) ~ "Missing",
+      TRUE ~ as.character(caregiver_hours_per_day)
+    ),
+    
+    caregiver_days_per_week = case_when(
+      caregiver_days_per_week %in% c(-7, -8) ~ "Missing",
+      TRUE ~ as.character(caregiver_days_per_week)
+    ),
+
+    # Assistive Technology Use (Yes/No/Missing)
+    across(starts_with("uses_assistive_tech"), ~ case_when(
+      . == 1 ~ "Yes",
+      . == 2 ~ "No",
+      . %in% c(-7, -8, -9, -1) ~ "Missing",
+      TRUE ~ as.character(.)
+    )),
+
+    # Digital Tools & Activity Tracker Use
+    uses_activity_tracker = case_when(
+      uses_activity_tracker == 1 ~ "Used",
+      uses_activity_tracker == 2 ~ "Not Used",
+      uses_activity_tracker == -1 ~ "Missing",
+      TRUE ~ as.character(uses_activity_tracker)
+    ),
+
+    tracker_completion_status = case_when(
+      tracker_completion_status == 1 ~ "Completed",
+      tracker_completion_status == 2 ~ "Refused",
+      tracker_completion_status == 3 ~ "No Usable Data",
+      tracker_completion_status == 5 ~ "No Watch Received",
+      tracker_completion_status == 6 ~ "Deceased",
+      tracker_completion_status == -1 ~ "Missing",
+      TRUE ~ as.character(tracker_completion_status)
+    ),
+
+    # Income (Available/Missing)
+    total_income = case_when(
+      total_income == 1 ~ "Available",
+      is.na(total_income) ~ "Missing",
+      TRUE ~ as.character(total_income)
+    )
+  )
+```
+
+
 
 
 Save the Cleaned & Merged Dataset
@@ -316,34 +475,57 @@ summary(hrrp_filtered)
 
 3rd: Merging NHATS and HRRP (direct merge is not possible, so it can be done using condition level aggregation):
 
-Merge by Chronic Condition & State
-	•	This allows us to analyze how digital tool adoption by caregivers (NHATS) relates to hospital readmission rates (HRRP) for specific conditions.
-	•	This approach will enable state-level insights about digital health tools in caregiving and their relationship with hospital readmissions.
+Merge by Chronic Conditions:
+	•	NHATS Chronic Condition Variables (has_heart_disease, has_hypertension, has_lung_disease, etc.)
+	•	HRRP Measure Name (measure_name: “READM-30-HF-HRRP”, “READM-30-AMI-HRRP”, etc.)
+
+The two datasets here to use:
+hrrp_filtered
+nhats_cleaned
 
 ```{r}
 # Load necessary libraries
 library(dplyr)
 library(readr)
 
-# Standardize column names for merging
-nhats_cleaned_data <- nhats_cleaned %>%
-  rename(state = State, chronic_condition = Condition)  # Adjust if needed
+# Create a mapping of NHATS conditions to HRRP measure names
+condition_map <- tibble(
+  nhats_condition = c("has_heart_disease", "has_lung_disease", "has_diabetes",
+                      "has_cancer", "has_stroke", "has_arthritis"),
+  hrrp_measure = c("READM-30-HF-HRRP", "READM-30-COPD-HRRP", "READM-30-PN-HRRP",
+                   "READM-30-AMI-HRRP", "READM-30-CABG-HRRP", "READM-30-THA-TKA-HRRP")
+)
+```
 
-hrrp_filtered_data <- hrrp_filtered %>%
-  rename(state = state, chronic_condition = measure_name)  # Adjust if needed
 
-# Merge datasets by state and condition
-merged_datasets <- nhats_cleaned_data %>%
-  inner_join(hrrp_filtered_data, by = c("state", "chronic_condition"))
+```{r}
+# # Reshape NHATS data to long format for merging
+# nhats_long <- nhats_cleaned %>%
+#   pivot_longer(cols = starts_with("has_"),
+#                names_to = "nhats_condition",
+#                values_to = "has_condition") %>%
+#   filter(has_condition == 1) %>% # Keep only rows where the person has the condition
+#   left_join(condition_map, by = "nhats_condition")  # Map to HRRP condition names
+```
 
-# View summary of merged dataset
-summary(merged_datasets)
+```{r}
 
+```
+
+	
+```{r}
+# Merge with HRRP based on condition
+merged_data <- nhats_long %>%
+  left_join(hrrp_filtered, by = c("hrrp_measure" = "measure_name"))
+```
+
+
+```{r}
 # Save the merged dataset
-write_csv(merged_datasets, "Merged_NHATS_HRRP_Data.csv")
+# write_csv(merged_data, "Merged_NHATS_HRRP.csv")
 
-# Display first few rows
-head(merged_datasets)
+# View merged dataset
+glimpse(merged_data)
 ```
 
 

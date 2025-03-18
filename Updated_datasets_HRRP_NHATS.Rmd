@@ -769,6 +769,12 @@ write_csv(merged_nhats_ltc, "~/desktop/NHATS_LTC_Facility_Merged_With_State.csv"
 
 #using merged_nhats_ltc and hrrp_filtered datasets 
 
+# To correctly merge NHATS (individual level) with HRRP (hospital level) while preserving participant details, we need to:
+- Keep NHATS data at the individual level
+- Summarize HRRP hospital data at the state level (e.g., average hospital quality measures per state)
+- Merge the summarized HRRP data onto NHATS participants by state
+
+# Summarizing HRRP_filtered before merging:
 ```{r}
 # Standardize State Column Formatting for Merging 
 #(remove extra spaces, convert to uppercase)
@@ -779,20 +785,90 @@ merged_nhats_ltc <- merged_nhats_ltc %>%
 hrrp_filtered <- hrrp_filtered %>%
   mutate(state = toupper(trimws(state)))
 
-# Perform a state-level merge 
-merged_nhats_hrrp <- merged_nhats_ltc %>%
-  left_join(hrrp_filtered, by = "state")  # Merging NHATS-LTC with HRRP by state
+# Summarize HRRP at the state level 
+hrrp_summary <- hrrp_filtered %>%
+  group_by(state) %>%
+  summarise(
+    avg_excess_readmission_ratio = mean(excess_readmission_ratio, na.rm = TRUE),
+    avg_predicted_readmission_rate = mean(predicted_readmission_rate, na.rm = TRUE),
+    avg_expected_readmission_rate = mean(expected_readmission_rate, na.rm = TRUE),
+    total_hospitals = n()  # Count hospitals per state
+  ) %>%
+  ungroup()
 
-# Check for Unmatched Records 
-unmatched_states <- merged_nhats_ltc %>%
-  filter(!(state %in% hrrp_filtered$state)) %>%
-  select(state) %>%
-  distinct()
-unmatched_states
+```
+
+
+```{r}
+# Merge NHATS Individual-Level Data with summarized HRRP data
+merged_nhats_hrrp <- merged_nhats_ltc %>%
+  left_join(hrrp_summary, by = "state")  # Merging NHATS with summarized HRRP data
 
 # Save the Merged Datasets
 write_csv(merged_nhats_hrrp, "~/desktop/Finalized_NHATS_LTC_HRRP.csv")
 ```
+
+
+# Potential Issues
+1- Missing Values in NHATS Health Conditions → Chronic disease variables (has_heart_disease, has_hypertension, etc.) have missing values, which might need imputation.
+2-89 Missing HRRP Values (avg_excess_readmission_ratio, etc.) → Some states may not have hospital-level readmission data available.
+
+
+# 1st potential issue: Missing NHATS Health Conditions => Impute using the mode (most common value).
+
+```{r}
+# Identify states missing HRRP Data:
+missing_hrrp_states <- merged_nhats_hrrp %>%
+  filter(is.na(avg_excess_readmission_ratio)) %>%
+  distinct(state)
+
+print("States with missing HRRP data:")
+print(missing_hrrp_states)
+
+#Impute missing NHATS health conditions with mode 
+health_condition_columns <- c(
+  "has_heart_disease", "has_hypertension", "has_lung_disease", "has_diabetes",
+  "has_cancer", "has_stroke", "has_arthritis", "has_dementia", "has_depression", "has_other_chronic"
+)
+```
+
+
+```{r}
+# Function to impute missing values with mode
+impute_mode <- function(x) {
+  ifelse(is.na(x), as.numeric(names(sort(table(x), decreasing = TRUE)[1])), x)
+}
+
+# Apply mode imputation to each health condition column
+final_merged <- merged_nhats_hrrp %>%
+  mutate(across(all_of(health_condition_columns), impute_mode))
+
+# ---- 4. Impute Missing HRRP Values Using State Averages ----
+hrrp_columns <- c("avg_excess_readmission_ratio", "avg_predicted_readmission_rate", "avg_expected_readmission_rate")
+
+# Fill missing values with state averages
+final_merged <- final_merged %>%
+  group_by(state) %>%
+  mutate(across(all_of(hrrp_columns), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .))) %>%
+  ungroup()
+
+# If any HRRP values are still missing (i.e., entire state was missing), fill with national average
+final_merged <- final_merged %>%
+  mutate(across(all_of(hrrp_columns), ~ ifelse(is.na(.), mean(., na.rm = TRUE), .)))
+
+write_csv(final_merged, "~/desktop/final_merged.csv")
+```
+
+
+
+
+
+
+
+
+
+
+
 
 
 

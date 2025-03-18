@@ -621,25 +621,25 @@ summary(hrrp_filtered)
 ```
 
 ```{r}
-# Convert Numeric Columns ----
+# Convert Numeric Columns 
 numeric_cols <- c("number_of_discharges", "excess_readmission_ratio", 
                   "predicted_readmission_rate", "expected_readmission_rate", "number_of_readmissions")
 
 hrrp_filtered[numeric_cols] <- lapply(hrrp_filtered[numeric_cols], as.numeric)
 
-# Handle Missing Values (Impute with Median) ----
+# Handle Missing Values (Impute with Median)
 for (col in numeric_cols) {
   hrrp_filtered[[col]][is.na(hrrp_filtered[[col]])] <- median(hrrp_filtered[[col]], na.rm = TRUE)
 }
 
-# Remove Duplicate Rows ----
+# Remove Duplicate Rows 
 hrrp_filtered <- hrrp_filtered %>% distinct()
 
-#Standardize State Column ----
+#Standardize State Column 
 hrrp_filtered <- hrrp_filtered %>%
   mutate(state = toupper(trimws(state)))  # Convert state codes to uppercase and remove extra spaces
 
-# ---- 8. View Summary ----
+# View Summary
 summary(hrrp_filtered)
 
 write_csv(hrrp_filtered, "Updated_hrrp_filtered.csv")
@@ -685,7 +685,7 @@ write_csv(hrrp_filtered, "Updated_hrrp_filtered.csv")
 
 ```
 
-# Expanding NHATS beyond nursing homes since it will be too short (29 obs):
+# Expanding NHATS beyond nursing homes since it will be too short (29 obs) so we need to use another dataset.
 
 
 

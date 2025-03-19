@@ -792,7 +792,15 @@ hrrp_summary <- hrrp_filtered %>%
     avg_excess_readmission_ratio = mean(excess_readmission_ratio, na.rm = TRUE),
     avg_predicted_readmission_rate = mean(predicted_readmission_rate, na.rm = TRUE),
     avg_expected_readmission_rate = mean(expected_readmission_rate, na.rm = TRUE),
-    total_hospitals = n()  # Count hospitals per state
+    total_hospitals = n(),  # Count hospitals per state
+    
+    #Instead of averaging, count how many hospitals were penalized per condition
+    heart_failure_penalized = sum(heart_failure, na.rm = TRUE),
+    heart_attack_penalized = sum(heart_attack, na.rm = TRUE),
+    copd_penalized = sum(copd, na.rm = TRUE),
+    pneumonia_penalized = sum(pneumonia, na.rm = TRUE),  # Fixed spelling
+    cabg_penalized = sum(cabg, na.rm = TRUE),
+    hip_knee_replacement_penalized = sum(hip_knee_replacement, na.rm = TRUE)
   ) %>%
   ungroup()
 

@@ -1,0 +1,598 @@
+---
+title: "NHATS_NCOS_datasets"
+output:
+  pdf_document: default
+  html_document: default
+  word_document: default
+date: "2025-03-17"
+---
+
+1st: NHATS datasets (caregivers/digital tools)
+
+# Focusing on Digital tools first:
+
+```{r}
+# Load necessary libraries
+library(haven)    # For reading SAS files
+library(dplyr)    # For data manipulation
+library(readr)    # For exporting CSV
+library(tidyverse)
+
+# Set file paths (Update these based on your file locations)
+tracker_data <- read_sas("~/desktop/Digital-tools_caregivers/NHATS_R13_Final_Release_SAS/Tracker_files/NHATS_Round_13_Tracker_File.sas7bdat")
+tab_act <- read_sas("~/desktop/Digital-tools_caregivers/NHATS_R13_Final_Release_SAS/Tab_act_files/NHATS_Round_13_Tab_Act_File.sas7bdat")
+
+# Tab_Act => Covers assistive devices, telehealth, vision, hearing, mobility
+
+# Save as CSV
+# write.csv(tracker_data, "tracker_data.csv", row.names = FALSE)
+# write.csv(tab_act, "tab_act.csv", row.names = FALSE)
+```
+
+```{r}
+#Exploratory data analysis:
+
+# Display all column names
+colnames(tracker_data)
+colnames(tab_act)
+
+#Check Data Structure & Summary
+# View first few rows
+head(tracker_data)
+head(tab_act)
+
+# Summary statistics for numerical variables
+summary(tracker_data)
+summary(tab_act)
+
+
+# Check structure of the datasets
+str(tracker_data)
+str(tab_act)
+
+# Count unique values in selected variables
+table(tab_act$vh13vision)
+
+```
+
+```{r}
+# Ensure participant ID is kept
+id_column <- "spid"
+
+# Functional Limitations (Vision & Hearing)
+functional_columns <- c("vh13vision", "vh13hearing", "vb135lglasses", "vb135lcontacts", "vb135lothvisaid")
+
+# Readmission & Chronic Condition Care (searching for relevant terms)
+readmission_columns <- grep("readmit|hospital", names(df), value = TRUE, ignore.case = TRUE)
+
+# Caregiver Support & Digital Tools (searching for relevant terms)
+caregiver_columns <- grep("care|support", names(df), value = TRUE, ignore.case = TRUE)
+
+# Cognitive & Functional Ability Measures
+cognitive_columns <- c("cb13onbspeed", "cb13onbstdev", "cb13onbacc", "cb13onbcorr", "cb13onberr", 
+                       "cb13onbcomp", "cb13onbinteg", "cb13dcogbatm")
+
+# Combine all selected columns
+selected_columns <- unique(c(id_column, functional_columns, readmission_columns, caregiver_columns, cognitive_columns))
+
+
+# Filter the dataset to keep only relevant columns
+tab_act_filtered <- tab_act %>% select(all_of(selected_columns))
+
+# View the filtered dataset
+head(tab_act_filtered)
+```
+
+```{r}
+# Rename columns to be more understandable
+tab_act_filtered <- tab_act_filtered %>%
+  rename(
+    participant_id = spid,
+    Vision_Status = vh13vision,
+    Hearing_Status = vh13hearing,
+    Uses_Glasses = vb135lglasses,
+    Uses_Contacts = vb135lcontacts,
+    Uses_Other_Visual_Aid = vb135lothvisaid,
+    Cognitive_Speed = cb13onbspeed,
+    Cognitive_Std_Dev = cb13onbstdev,
+    Cognitive_Accuracy = cb13onbacc,
+    Cognitive_Correct_Responses = cb13onbcorr,
+    Cognitive_Errors = cb13onberr,
+    Cognitive_Completion = cb13onbcomp,
+    Cognitive_Integration = cb13onbinteg,
+    Cognitive_Battery_Measure = cb13dcogbatm
+  )
+
+# View the renamed dataset
+head(tab_act_filtered)
+```
+
+
+```{r}
+# Define the relevant columns
+selected_columns <- c("spid", "r13panel", "r13status", "r13casestdtmt", "r13casestdtyr",
+                      "r13spstat1", "r13spstat2", "r13fqstat",
+                      "r12status", "r11status")
+
+# Filter the dataset to keep only relevant columns
+tracker_data_filtered <- tracker_data %>% select(all_of(selected_columns))
+
+# Rename the columns to meaningful names
+tracker_data_filtered <- tracker_data_filtered %>%
+  rename(
+    participant_id = spid,
+    Panel_ID = r13panel,
+    Overall_Case_Status = r13status,
+    Case_Status_Month = r13casestdtmt,
+    Case_Status_Year = r13casestdtyr,
+    Participant_Interview_Status_1 = r13spstat1,
+    Participant_Interview_Status_2 = r13spstat2,
+    Facility_Questionnaire_Status = r13fqstat,
+    Previous_Year_Status = r12status,
+    Two_Years_Ago_Status = r11status
+  )
+
+# View renamed dataset
+head(tracker_data_filtered)
+
+# We are using tracker data because it helps remove ineligible cases (e.g., deceased participants or refusals)
+```
+
+```{r}
+# Merge datasets using left joins on 'participant_id'
+merged_digital_tools <- tab_act_filtered %>%
+  left_join(tracker_data_filtered, by = "participant_id")
+
+# View summary of merged dataset
+glimpse(merged_digital_tools)
+
+# Save the final merged dataset as a CSV file
+write_csv(merged_digital_tools, "~/desktop/Digital-tools_caregivers/NHATS_Merged_Digital_Tools.csv")
+```
+
+# Next, working on the remaining datasets that focus more on caregivers, patients, and merge them with the cleaned digital tools dataset:
+```{r}
+# Load libraries
+library(haven)      # To read .sas7bdat files
+library(tidyverse)  # For data wrangling
+library(janitor)    # For cleaning column names
+library(skimr)      # For summarizing datasets
+
+# Load NHATS data files
+nhats_sp <- read_sas("~/desktop/Digital-tools_caregivers/NHATS_R13_Final_Release_SAS/SP_files/NHATS_Round_13_SP_File.sas7bdat") # Sample Person Data
+nhats_op <- read_sas("~/desktop/Digital-tools_caregivers/NHATS_R13_Final_Release_SAS/OP_files/NHATS_Round_13_OP_File.sas7bdat") # Caregiver Data
+merged_digital_tools <- read_csv("~/desktop/Digital-tools_caregivers/NHATS_Merged_Digital_tools.csv") # Digital tool use data
+inc_path <- read_sas("~/desktop/Digital-tools_caregivers/NHATS_R13_Final_Release_SAS/Inc_files/NHATS_R13_Int_Inc_Imp_File.sas7bdat")
+
+# Clean column names
+nhats_sp <- nhats_sp %>% clean_names()
+nhats_op <- nhats_op %>% clean_names()
+merged_digital_tools <- merged_digital_tools %>% clean_names()
+nhats_inc <- inc_path %>% clean_names()  # Income & Socioeconomic Data
+
+# Check variables
+# colnames(nhats_sp)
+# colnames(nhats_op)
+# colnames(merged_digital_tools)
+# colnames(nhats_inc)
+```
+
+```{r}
+# Save the final merged dataset as a CSV file
+# write_csv(nhats_op, "nhats_op.csv")
+# write_csv(nhats_sp, "nhats_sp.csv")
+# write_csv(inc_path, "inc_path.csv")
+```
+
+# Income dataset
+
+```{r}
+# Define the relevant columns
+selected_columns_inc_path <- c("spid", "ia13toincimif", "ia13dtoincimi1", 
+                               "ia13dtoincimi2", "ia13dtoincimi3", 
+                               "ia13dtoincimi4", "ia13dtoincimi5", "ia13dtoincimreas")
+
+# Filter the dataset to keep only relevant columns
+inc_data_filtered <- nhats_inc %>% select(all_of(selected_columns_inc_path))
+
+# View filtered dataset
+head(inc_data_filtered)
+
+# Rename the columns to meaningful names
+inc_data_filtered <- inc_data_filtered %>%
+  rename(
+    participant_id = spid,
+    Total_Imputed_Income = ia13toincimif,
+    Income_Source_1 = ia13dtoincimi1,
+    Income_Source_2 = ia13dtoincimi2,
+    Income_Source_3 = ia13dtoincimi3,
+    Income_Source_4 = ia13dtoincimi4,
+    Income_Source_5 = ia13dtoincimi5,
+    Missing_Income_Reason = ia13dtoincimreas
+  )
+
+# View renamed dataset
+head(inc_data_filtered)
+```
+
+#SP dataset
+
+```{r}
+# Select and rename relevant variables from NHATS_SP (Older Adults Data)
+nhats_sp_filtered <- nhats_sp %>%
+  select(
+    spid,              # Unique respondent ID
+    r13dresid,         # Residential status (community, assisted living, nursing home)
+    r13dgender,        # Gender of respondent
+    r13d2intvrage,     # Age of respondent
+    hc13disescn1, hc13disescn2, hc13disescn3, hc13disescn4, hc13disescn5, 
+    hc13disescn6, hc13disescn7, hc13disescn8, hc13disescn9, hc13disescn10,  # Chronic diseases
+    is13proxlivsp,     # Does caregiver live with respondent?
+    is13prxyrelat,     # Relationship of the proxy caregiver
+    is13prxygendr,     # Gender of the proxy caregiver
+    em13paydevce1:em13paydevce6,  # Assistive technology usage
+    te13intrntmd2, te13intrntmd3, te13intrntmd4, 
+    te13computer, te13tablet, te13emailtext, te13online, 
+    te13shoponli1, te13shoponli2, te13shoponli3, te13socialnet,
+#Post acute care related
+    hc13hosptstay, hc13hosovrnht,
+# NEW: cognitive and functional decline variables
+    cp13chgthink1:cp13chgthink8,  # Changes in thinking/memory
+    mo13bedslf, mo13bedwout,      # Bed mobility
+    rh13impactiv, rh13impcomp, rh13imphh,  # Limitations in daily life
+    rh13funcback, rh13funcknees, rh13funcfeet, rh13funcwrist, # Body part limitations
+    pc13walk6blks, pc13up10stair, pc13car20pnds # Mobility
+  ) %>%
+  
+  rename(
+    participant_id = spid,
+    residence_type = r13dresid,         # Residential status (community, assisted living, nursing home)
+    respondent_gender = r13dgender,     # Gender of respondent
+    respondent_age = r13d2intvrage,     # Age of respondent
+    has_heart_disease = hc13disescn1,   
+    has_hypertension = hc13disescn2,
+    has_lung_disease = hc13disescn3,
+    has_diabetes = hc13disescn4,
+    has_cancer = hc13disescn5,
+    has_stroke = hc13disescn6,
+    has_arthritis = hc13disescn7,
+    has_dementia = hc13disescn8,
+    has_depression = hc13disescn9,
+    has_other_chronic = hc13disescn10,
+    caregiver_lives_with_respondent = is13proxlivsp, # Does the caregiver live with respondent?
+    caregiver_relationship = is13prxyrelat, # Relationship of the proxy caregiver
+    caregiver_gender = is13prxygendr, # Gender of the proxy caregiver
+    vision_aids = em13paydevce1, # Glasses, magnifiers
+    hearing_aids = em13paydevce2, # Hearing aids
+    cane = em13paydevce3, # Cane
+    walker = em13paydevce4, # Walker
+    wheelchair = em13paydevce5, # Wheelchair
+    other_mobility_aid = em13paydevce6, # Grab bars, raised toilet seats
+    telehealth_use = te13intrntmd2,         # Used internet for telehealth
+    insurance_info_online = te13intrntmd3,  # Looked up insurance info online
+    health_info_online = te13intrntmd4,     # Searched for health information online
+    has_computer = te13computer,            # Owns and uses a computer
+    has_tablet = te13tablet,                # Owns and uses a tablet
+    uses_email_or_text = te13emailtext,     # Uses email or text messaging
+    uses_online_services = te13online,      # Uses a computer for online tasks
+    orders_groceries_online = te13shoponli1,# Orders groceries online
+    online_banking = te13shoponli2,         # Uses online banking
+    orders_prescriptions_online = te13shoponli3, # Orders prescription refills online
+    social_media_use = te13socialnet,        # Uses social networking sites
+    had_hosp_stay_12mo = hc13hosptstay, 
+    num_hosp_stays = hc13hosovrnht, 
+    
+    # Cognitive change indicators
+    change_memory = cp13chgthink1,
+    change_decisionmaking = cp13chgthink2,
+    change_following_instructions = cp13chgthink3,
+    change_concentration = cp13chgthink4,
+    change_language = cp13chgthink5,
+    change_organization = cp13chgthink6,
+    change_multitasking = cp13chgthink7,
+    change_recognition = cp13chgthink8,
+
+    # Functional mobility
+    can_get_out_of_bed_alone = mo13bedslf,
+    can_get_out_of_bed_with_aid = mo13bedwout,
+
+    # Activity limitations
+    needs_help_activities = rh13impactiv,
+    needs_help_comprehension = rh13impcomp,
+    needs_help_household = rh13imphh,
+
+    # Physical function impairments
+    back_limitation = rh13funcback,
+    knee_limitation = rh13funcknees,
+    foot_limitation = rh13funcfeet,
+    wrist_limitation = rh13funcwrist,
+
+    # Strength/mobility tests
+    walk_six_blocks = pc13walk6blks,
+    climb_stairs = pc13up10stair,
+    lift_20_pounds = pc13car20pnds
+  ) %>%
+   mutate(
+    residence_type = case_when(
+      residence_type == 1 ~ "Community",
+      residence_type == 2 ~ "Residential Care",
+      residence_type == 3 ~ "Nursing Home",
+      residence_type == 4 ~ "Assisted Living",
+      TRUE ~ NA_character_
+    ),
+    respondent_gender = case_when(
+      respondent_gender == 1 ~ "Male",
+      respondent_gender == 2 ~ "Female",
+      TRUE ~ NA_character_
+    ),
+    respondent_age = case_when(
+      respondent_age == 1 ~ "65-69",
+      respondent_age == 2 ~ "70-74",
+      respondent_age == 3 ~ "75-79",
+      respondent_age == 4 ~ "80-84",
+      respondent_age == 5 ~ "85-89",
+      respondent_age == 6 ~ "90+",
+      TRUE ~ NA_character_
+    ),
+    caregiver_lives_with_respondent = case_when(
+      caregiver_lives_with_respondent == 1 ~ "Yes",
+      caregiver_lives_with_respondent == 2 ~ "No",
+      TRUE ~ NA_character_
+    ),
+    caregiver_relationship = case_when(
+      caregiver_relationship == 1 ~ "Spouse/Partner",
+      caregiver_relationship == 2 ~ "Child",
+      caregiver_relationship == 3 ~ "Sibling",
+      caregiver_relationship == 4 ~ "Other Relative",
+      caregiver_relationship == 5 ~ "Friend/Neighbor",
+      caregiver_relationship == 6 ~ "Paid Caregiver",
+      caregiver_relationship == 7 ~ "Other Non-Relative",
+      caregiver_relationship == 8 ~ "Unknown",
+      TRUE ~ NA_character_
+    ),
+    caregiver_gender = case_when(
+      caregiver_gender == 1 ~ "Male",
+      caregiver_gender == 2 ~ "Female",
+      TRUE ~ NA_character_
+    ),
+    # Convert assistive technology usage (1=Yes, 2=No, -9=Missing)
+    across(starts_with("vision_aids"):starts_with("other_mobility_aid"), ~ case_when(
+      . == 1 ~ "Yes",
+      . == 2 ~ "No",
+      TRUE ~ "Missing"
+    )),
+    # Convert digital tool usage (1=Yes, 2=No, -9=Missing)
+    across(starts_with("telehealth_use"):starts_with("social_media_use"), ~ case_when(
+      . == 1 ~ "Yes",
+      . == 2 ~ "No",
+      TRUE ~ "Missing"
+    )),
+     # Existing binary conversions
+  had_hosp_stay_12mo_bin = case_when(
+    had_hosp_stay_12mo == 1 ~ 1,
+    had_hosp_stay_12mo == 2 ~ 0,
+    TRUE ~ NA_real_
+  ),
+  multiple_hosp_stays = case_when(
+    num_hosp_stays >= 2 ~ 1,
+    num_hosp_stays < 2 ~ 0,
+    TRUE ~ NA_real_
+  ),
+
+  # New: Categorized version of number of hospital stays
+  hosp_stay_category = case_when(
+    num_hosp_stays == 0 ~ "None",
+    num_hosp_stays == 1 ~ "One",
+    num_hosp_stays >= 2 ~ "Multiple",
+    TRUE ~ NA_character_
+  )
+  )
+
+write_csv(nhats_sp_filtered, "~/desktop/Digital-tools_caregivers/nhats_sp_filtered.csv")
+```
+
+#OP dataset
+
+```{r}
+# Select and rename relevant variables from NHATS_OP (Caregivers Data)
+nhats_op_filtered <- nhats_op %>%
+  select(
+    spid,             # Unique respondent ID (for merging)
+    op13relatnshp,    # Relationship of caregiver to respondent
+    op13proxy,        # Whether caregiver answered on behalf of respondent
+    op13dage,         # Age of the caregiver
+    op13numhrsday,    # Hours of caregiving per day
+    op13numdayswk     # Days of caregiving per week
+  ) %>%
+  rename(
+    participant_id = spid,
+    caregiver_relationship_to_respondent = op13relatnshp, # Relationship of caregiver to respondent
+    caregiver_answered_for_respondent = op13proxy, # Whether caregiver answered on behalf of respondent
+    caregiver_age = op13dage, # Age of the caregiver
+    caregiver_hours_per_day = op13numhrsday, # Hours of caregiving per day
+    caregiver_days_per_week = op13numdayswk # Days of caregiving per week
+  )%>%
+  mutate(
+    caregiver_relationship_to_respondent = case_when(
+      caregiver_relationship_to_respondent == 1 ~ "Spouse/Partner",
+      caregiver_relationship_to_respondent == 2 ~ "Child",
+      caregiver_relationship_to_respondent == 3 ~ "Sibling",
+      caregiver_relationship_to_respondent == 4 ~ "Other Relative",
+      caregiver_relationship_to_respondent == 5 ~ "Friend/Neighbor",
+      caregiver_relationship_to_respondent == 6 ~ "Paid Caregiver",
+      caregiver_relationship_to_respondent == 7 ~ "Other Non-Relative",
+      caregiver_relationship_to_respondent == 8 ~ "Unknown",
+      TRUE ~ NA_character_
+    ),
+    
+    caregiver_answered_for_respondent = case_when(
+      caregiver_answered_for_respondent == 1 ~ "Yes",
+      caregiver_answered_for_respondent == 2 ~ "No",
+      TRUE ~ NA_character_
+    ),
+    
+    caregiver_age = case_when(
+      caregiver_age == -9 ~ NA_real_,  # Replace missing values
+      TRUE ~ caregiver_age  # Keep actual age values
+    ),
+    
+    caregiver_hours_per_day = case_when(
+      caregiver_hours_per_day == -9 ~ NA_real_,
+      caregiver_hours_per_day == -1 ~ NA_real_,
+      TRUE ~ caregiver_hours_per_day
+    ),
+    
+    caregiver_days_per_week = case_when(
+      caregiver_days_per_week == -9 ~ NA_real_,
+      caregiver_days_per_week == -1 ~ NA_real_,
+      TRUE ~ caregiver_days_per_week
+    )
+  )
+```
+
+
+
+Merge Caregiver & Digital Tool Use Data
+
+Merge NHATS caregiving data with digital tool usage
+
+```{r}
+# Merge NHATS_SP with NHATS_OP (Caregiver + Care Recipient Data)
+nhats_merged <- nhats_sp_filtered %>%
+  left_join(nhats_op_filtered, by = "participant_id") %>%
+  left_join(merged_digital_tools, by = "participant_id") %>%
+  left_join(inc_data_filtered, by = "participant_id")
+
+# Check merged dataset
+glimpse(nhats_merged)
+
+write_csv(nhats_merged, "~/desktop/Digital-tools_caregivers/nhats_merged.csv")
+```
+
+
+
+
+
+
+# Work on the NHATS merged dataset to deal with missingness and make it ready to merge with HRRP dataset:
+
+# Handling Missing Values
+
+```{r}
+# Check for missing values in each column
+colSums(is.na(nhats_merged))  # Shows number of missing values per column
+```
+
+#Handling Missing Categorical Variables
+#Categorical values -> "Unknown" for missing values
+```{r}
+# List of categorical columns to replace NAs with "Unknown"
+categorical_cols <- c("residence_type", "caregiver_lives_with_respondent", 
+                      "caregiver_relationship", "caregiver_gender",
+                      "caregiver_relationship_to_respondent", "caregiver_answered_for_respondent")
+
+# Replace missing values with "Unknown"
+nhats_merged[categorical_cols] <- lapply(nhats_merged[categorical_cols], function(x) ifelse(is.na(x), "Unknown", x))
+```
+
+#Handling Missing Numeric Variables
+```{r}
+# Handling Missing Values in Age Variables 
+# Keep respondent_age as a character (preserving the range)
+nhats_merged$respondent_age <- as.character(nhats_merged$respondent_age)
+
+# keep missing ages them as NA
+nhats_merged$respondent_age[nhats_merged$respondent_age == ""] <- NA  # Ensures empty strings are NA
+```
+
+
+```{r}
+# Handling Caregiver Age (Numeric) 
+# Convert caregiver_age to numeric and replace NA with the median age
+nhats_merged$caregiver_age <- as.numeric(nhats_merged$caregiver_age)
+nhats_merged$caregiver_age[is.na(nhats_merged$caregiver_age)] <- median(nhats_merged$caregiver_age, na.rm = TRUE)
+```
+
+
+```{r}
+# Handling Missing Values for Care Hours and Days
+nhats_merged$caregiver_hours_per_day[is.na(nhats_merged$caregiver_hours_per_day)] <- median(nhats_merged$caregiver_hours_per_day, na.rm = TRUE)
+nhats_merged$caregiver_days_per_week[is.na(nhats_merged$caregiver_days_per_week)] <- median(nhats_merged$caregiver_days_per_week, na.rm = TRUE)
+
+print(colSums(is.na(nhats_merged)))
+```
+
+
+# Handling Special Cases (Total_Imputed_Income has -1)
+# Replacing -1 with NA (Your code)
+```{r}
+# Replace -1 with NA in Total_Imputed_Income
+nhats_merged$Total_Imputed_Income[nhats_merged$Total_Imputed_Income == -1] <- NA
+
+head(nhats_merged)
+```
+
+```{r}
+#Standardizing Binary Variables 
+binary_cols <- c("has_heart_disease", "has_hypertension", "has_lung_disease", "has_diabetes",
+                 "has_cancer", "has_stroke", "has_arthritis", "has_dementia", "has_depression", "has_other_chronic")
+
+nhats_merged[binary_cols] <- lapply(nhats_merged[binary_cols], function(x) {
+  x <- as.numeric(x)  # Ensure numeric
+  ifelse(x == 1, 1, ifelse(x == 2, 0, NA))  # 1 = Yes, 0 = No, NA for other values
+})
+```
+
+```{r}
+# Convert income source columns to numeric
+income_cols <- c("Income_Source_1", "Income_Source_2", "Income_Source_3", "Income_Source_4", "Income_Source_5")
+nhats_merged[income_cols] <- lapply(nhats_merged[income_cols], as.numeric)
+```
+
+```{r}
+# Handling Duplicates ----
+# Check for duplicate participant IDs
+duplicate_count <- sum(duplicated(nhats_merged$participant_id))
+print(paste("Number of duplicate participant IDs:", duplicate_count))
+
+# If duplicates exist, remove all but the first occurrence
+nhats_merged <- nhats_merged[!duplicated(nhats_merged$participant_id), ]
+```
+
+```{r}
+# Encoding Categorical Variables 
+# Convert categorical variables to factors
+categorical_cols <- c("residence_type", "caregiver_relationship", "caregiver_gender")
+nhats_merged[categorical_cols] <- lapply(nhats_merged[categorical_cols], as.factor)
+```
+
+```{r}
+#Removing or Transforming Outliers 
+# Identify outliers in caregiver_hours_per_day using IQR
+Q1 <- quantile(nhats_merged$caregiver_hours_per_day, 0.25, na.rm = TRUE)
+Q3 <- quantile(nhats_merged$caregiver_hours_per_day, 0.75, na.rm = TRUE)
+IQR_value <- Q3 - Q1
+upper_bound <- Q3 + 1.5 * IQR_value
+lower_bound <- Q1 - 1.5 * IQR_value
+
+# Replace outliers with the median
+median_caregiver_hours <- median(nhats_merged$caregiver_hours_per_day, na.rm = TRUE)
+nhats_merged$caregiver_hours_per_day[nhats_merged$caregiver_hours_per_day > upper_bound | nhats_merged$caregiver_hours_per_day < lower_bound] <- median_caregiver_hours
+```
+
+```{r}
+# Verifying Logical Consistency
+# If a participant has no caregiver, ensure caregiver_hours_per_day is 0 or NA
+nhats_merged$caregiver_hours_per_day[nhats_merged$caregiver_relationship == "No caregiver"] <- 0
+
+# Final check for missing values
+colSums(is.na(nhats_merged))
+```
+
+```{r}
+write_csv(nhats_merged, "~/desktop/Digital-tools_caregivers/Updated_nhats_merged.csv")
+```
+
+
+
+

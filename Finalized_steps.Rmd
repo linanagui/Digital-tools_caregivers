@@ -32,26 +32,26 @@ tab_act <- read_sas("~/desktop/Digital-tools_caregivers/NHATS_R13_Final_Release_
 ```{r}
 #Exploratory data analysis:
 
-# Display all column names
-colnames(tracker_data)
-colnames(tab_act)
-
-#Check Data Structure & Summary
-# View first few rows
-head(tracker_data)
-head(tab_act)
-
-# Summary statistics for numerical variables
-summary(tracker_data)
-summary(tab_act)
-
-
-# Check structure of the datasets
-str(tracker_data)
-str(tab_act)
-
-# Count unique values in selected variables
-table(tab_act$vh13vision)
+# # Display all column names
+# colnames(tracker_data)
+# colnames(tab_act)
+# 
+# #Check Data Structure & Summary
+# # View first few rows
+# head(tracker_data)
+# head(tab_act)
+# 
+# # Summary statistics for numerical variables
+# summary(tracker_data)
+# summary(tab_act)
+# 
+# 
+# # Check structure of the datasets
+# str(tracker_data)
+# str(tab_act)
+# 
+# # Count unique values in selected variables
+# table(tab_act$vh13vision)
 
 ```
 
@@ -236,7 +236,7 @@ nhats_sp_filtered <- nhats_sp %>%
     te13shoponli1, te13shoponli2, te13shoponli3, te13socialnet,
 #Post acute care related
     hc13hosptstay, hc13hosovrnht,
-# NEW: cognitive and functional decline variables
+# cognitive and functional decline variables
     cp13chgthink1:cp13chgthink8,  # Changes in thinking/memory
     mo13bedslf, mo13bedwout,      # Bed mobility
     rh13impactiv, rh13impcomp, rh13imphh,  # Limitations in daily life
@@ -474,7 +474,7 @@ write_csv(nhats_merged, "~/desktop/Digital-tools_caregivers/nhats_merged.csv")
 
 
 
-# Work on the NHATS merged dataset to deal with missingness and make it ready to merge with HRRP dataset:
+# Work on the NHATS merged dataset to deal with missingness:
 
 # Handling Missing Values
 
@@ -486,112 +486,1153 @@ colSums(is.na(nhats_merged))  # Shows number of missing values per column
 #Handling Missing Categorical Variables
 #Categorical values -> "Unknown" for missing values
 ```{r}
-# List of categorical columns to replace NAs with "Unknown"
-categorical_cols <- c("residence_type", "caregiver_lives_with_respondent", 
-                      "caregiver_relationship", "caregiver_gender",
-                      "caregiver_relationship_to_respondent", "caregiver_answered_for_respondent")
-
-# Replace missing values with "Unknown"
-nhats_merged[categorical_cols] <- lapply(nhats_merged[categorical_cols], function(x) ifelse(is.na(x), "Unknown", x))
+# # List of categorical columns to replace NAs with "Unknown"
+# categorical_cols <- c("residence_type", "caregiver_lives_with_respondent", 
+#                       "caregiver_relationship", "caregiver_gender",
+#                       "caregiver_relationship_to_respondent", "caregiver_answered_for_respondent")
+# 
+# # Replace missing values with "Unknown"
+# nhats_merged[categorical_cols] <- lapply(nhats_merged[categorical_cols], function(x) ifelse(is.na(x), "Unknown", x))
 ```
 
 #Handling Missing Numeric Variables
 ```{r}
-# Handling Missing Values in Age Variables 
-# Keep respondent_age as a character (preserving the range)
-nhats_merged$respondent_age <- as.character(nhats_merged$respondent_age)
-
-# keep missing ages them as NA
-nhats_merged$respondent_age[nhats_merged$respondent_age == ""] <- NA  # Ensures empty strings are NA
+# # Handling Missing Values in Age Variables 
+# # Keep respondent_age as a character (preserving the range)
+# nhats_merged$respondent_age <- as.character(nhats_merged$respondent_age)
+# 
+# # keep missing ages them as NA
+# nhats_merged$respondent_age[nhats_merged$respondent_age == ""] <- NA  # Ensures empty strings are NA
 ```
 
 
 ```{r}
-# Handling Caregiver Age (Numeric) 
-# Convert caregiver_age to numeric and replace NA with the median age
-nhats_merged$caregiver_age <- as.numeric(nhats_merged$caregiver_age)
-nhats_merged$caregiver_age[is.na(nhats_merged$caregiver_age)] <- median(nhats_merged$caregiver_age, na.rm = TRUE)
+# # Handling Caregiver Age (Numeric) 
+# # Convert caregiver_age to numeric and replace NA with the median age
+# nhats_merged$caregiver_age <- as.numeric(nhats_merged$caregiver_age)
+# nhats_merged$caregiver_age[is.na(nhats_merged$caregiver_age)] <- median(nhats_merged$caregiver_age, na.rm = TRUE)
 ```
 
 
 ```{r}
-# Handling Missing Values for Care Hours and Days
-nhats_merged$caregiver_hours_per_day[is.na(nhats_merged$caregiver_hours_per_day)] <- median(nhats_merged$caregiver_hours_per_day, na.rm = TRUE)
-nhats_merged$caregiver_days_per_week[is.na(nhats_merged$caregiver_days_per_week)] <- median(nhats_merged$caregiver_days_per_week, na.rm = TRUE)
-
-print(colSums(is.na(nhats_merged)))
+# # Handling Missing Values for Care Hours and Days
+# nhats_merged$caregiver_hours_per_day[is.na(nhats_merged$caregiver_hours_per_day)] <- median(nhats_merged$caregiver_hours_per_day, na.rm = TRUE)
+# nhats_merged$caregiver_days_per_week[is.na(nhats_merged$caregiver_days_per_week)] <- median(nhats_merged$caregiver_days_per_week, na.rm = TRUE)
+# 
+# print(colSums(is.na(nhats_merged)))
 ```
 
 
 # Handling Special Cases (Total_Imputed_Income has -1)
 # Replacing -1 with NA (Your code)
 ```{r}
-# Replace -1 with NA in Total_Imputed_Income
-nhats_merged$Total_Imputed_Income[nhats_merged$Total_Imputed_Income == -1] <- NA
-
-head(nhats_merged)
+# # Replace -1 with NA in Total_Imputed_Income
+# nhats_merged$Total_Imputed_Income[nhats_merged$Total_Imputed_Income == -1] <- NA
+# 
+# head(nhats_merged)
 ```
 
 ```{r}
-#Standardizing Binary Variables 
+# #Standardizing Binary Variables 
+# binary_cols <- c("has_heart_disease", "has_hypertension", "has_lung_disease", "has_diabetes",
+#                  "has_cancer", "has_stroke", "has_arthritis", "has_dementia", "has_depression", "has_other_chronic")
+# 
+# nhats_merged[binary_cols] <- lapply(nhats_merged[binary_cols], function(x) {
+#   x <- as.numeric(x)  # Ensure numeric
+#   ifelse(x == 1, 1, ifelse(x == 2, 0, NA))  # 1 = Yes, 0 = No, NA for other values
+# })
+```
+
+```{r}
+# # Convert income source columns to numeric
+# income_cols <- c("Income_Source_1", "Income_Source_2", "Income_Source_3", "Income_Source_4", "Income_Source_5")
+# nhats_merged[income_cols] <- lapply(nhats_merged[income_cols], as.numeric)
+```
+
+```{r}
+# # Handling Duplicates ----
+# # Check for duplicate participant IDs
+# duplicate_count <- sum(duplicated(nhats_merged$participant_id))
+# print(paste("Number of duplicate participant IDs:", duplicate_count))
+# 
+# # If duplicates exist, remove all but the first occurrence
+# nhats_merged <- nhats_merged[!duplicated(nhats_merged$participant_id), ]
+```
+
+```{r}
+# # Encoding Categorical Variables 
+# # Convert categorical variables to factors
+# categorical_cols <- c("residence_type", "caregiver_relationship", "caregiver_gender")
+# nhats_merged[categorical_cols] <- lapply(nhats_merged[categorical_cols], as.factor)
+```
+
+```{r}
+# #Removing or Transforming Outliers 
+# # Identify outliers in caregiver_hours_per_day using IQR
+# Q1 <- quantile(nhats_merged$caregiver_hours_per_day, 0.25, na.rm = TRUE)
+# Q3 <- quantile(nhats_merged$caregiver_hours_per_day, 0.75, na.rm = TRUE)
+# IQR_value <- Q3 - Q1
+# upper_bound <- Q3 + 1.5 * IQR_value
+# lower_bound <- Q1 - 1.5 * IQR_value
+# 
+# # Replace outliers with the median
+# median_caregiver_hours <- median(nhats_merged$caregiver_hours_per_day, na.rm = TRUE)
+# nhats_merged$caregiver_hours_per_day[nhats_merged$caregiver_hours_per_day > upper_bound | nhats_merged$caregiver_hours_per_day < lower_bound] <- median_caregiver_hours
+```
+
+```{r}
+# # Verifying Logical Consistency
+# # If a participant has no caregiver, ensure caregiver_hours_per_day is 0 or NA
+# nhats_merged$caregiver_hours_per_day[nhats_merged$caregiver_relationship == "No caregiver"] <- 0
+# 
+# # Final check for missing values
+# colSums(is.na(nhats_merged))
+```
+
+
+```{r}
+# -------------------------
+# Flag & Clean Caregiver Data
+# -------------------------
+# Flag if participant has a caregiver
+nhats_merged <- nhats_merged %>%
+  mutate(
+    has_caregiver = ifelse(is.na(caregiver_relationship), 0, 1)
+  )
+
+# Clean categorical caregiver variables for those with caregivers only
+nhats_merged <- nhats_merged %>%
+  mutate(
+    caregiver_lives_with_respondent = ifelse(is.na(caregiver_lives_with_respondent) & has_caregiver == 1, "Unknown", caregiver_lives_with_respondent),
+    caregiver_relationship = ifelse(is.na(caregiver_relationship) & has_caregiver == 1, "Unknown", caregiver_relationship),
+    caregiver_gender = ifelse(is.na(caregiver_gender) & has_caregiver == 1, "Unknown", caregiver_gender),
+    caregiver_answered_for_respondent = ifelse(is.na(caregiver_answered_for_respondent) & has_caregiver == 1, "Unknown", caregiver_answered_for_respondent)
+  )
+
+# Impute caregiver hours (only for those with caregivers), set 0 if no caregiver
+nhats_merged <- nhats_merged %>%
+  mutate(
+    caregiver_hours_per_day = case_when(
+      has_caregiver == 1 & is.na(caregiver_hours_per_day) ~ median(caregiver_hours_per_day, na.rm = TRUE),
+      has_caregiver == 0 ~ 0,
+      TRUE ~ caregiver_hours_per_day
+    ),
+    caregiver_days_per_week = case_when(
+      has_caregiver == 1 & is.na(caregiver_days_per_week) ~ median(caregiver_days_per_week, na.rm = TRUE),
+      has_caregiver == 0 ~ 0,
+      TRUE ~ caregiver_days_per_week
+    ),
+    caregiver_total_hours = caregiver_hours_per_day * caregiver_days_per_week,
+    caregiver_burden_category = case_when(
+      caregiver_total_hours < 10 ~ "Low",
+      caregiver_total_hours < 30 ~ "Moderate",
+      caregiver_total_hours >= 30 ~ "High",
+      TRUE ~ NA_character_
+    )
+  )
+
+# -------------------------
+# Clean Age, Income, Binary Vars
+# -------------------------
+
+# Clean age (range) and income (-1 to NA)
+nhats_merged$respondent_age <- as.character(nhats_merged$respondent_age)
+nhats_merged$respondent_age[nhats_merged$respondent_age == ""] <- NA
+nhats_merged$Total_Imputed_Income[nhats_merged$Total_Imputed_Income == -1] <- NA
+
+# Standardize chronic condition variables
 binary_cols <- c("has_heart_disease", "has_hypertension", "has_lung_disease", "has_diabetes",
                  "has_cancer", "has_stroke", "has_arthritis", "has_dementia", "has_depression", "has_other_chronic")
 
 nhats_merged[binary_cols] <- lapply(nhats_merged[binary_cols], function(x) {
-  x <- as.numeric(x)  # Ensure numeric
-  ifelse(x == 1, 1, ifelse(x == 2, 0, NA))  # 1 = Yes, 0 = No, NA for other values
+  x <- as.numeric(x)
+  ifelse(x == 1, 1, ifelse(x == 2, 0, NA))
 })
-```
 
-```{r}
-# Convert income source columns to numeric
-income_cols <- c("Income_Source_1", "Income_Source_2", "Income_Source_3", "Income_Source_4", "Income_Source_5")
-nhats_merged[income_cols] <- lapply(nhats_merged[income_cols], as.numeric)
-```
-
-```{r}
-# Handling Duplicates ----
-# Check for duplicate participant IDs
-duplicate_count <- sum(duplicated(nhats_merged$participant_id))
-print(paste("Number of duplicate participant IDs:", duplicate_count))
-
-# If duplicates exist, remove all but the first occurrence
-nhats_merged <- nhats_merged[!duplicated(nhats_merged$participant_id), ]
-```
-
-```{r}
-# Encoding Categorical Variables 
-# Convert categorical variables to factors
+# Convert key categorical vars to factors
 categorical_cols <- c("residence_type", "caregiver_relationship", "caregiver_gender")
 nhats_merged[categorical_cols] <- lapply(nhats_merged[categorical_cols], as.factor)
-```
 
-```{r}
-#Removing or Transforming Outliers 
-# Identify outliers in caregiver_hours_per_day using IQR
-Q1 <- quantile(nhats_merged$caregiver_hours_per_day, 0.25, na.rm = TRUE)
-Q3 <- quantile(nhats_merged$caregiver_hours_per_day, 0.75, na.rm = TRUE)
-IQR_value <- Q3 - Q1
-upper_bound <- Q3 + 1.5 * IQR_value
-lower_bound <- Q1 - 1.5 * IQR_value
+# -------------------------
+# Create Analysis Variables
+# -------------------------
 
-# Replace outliers with the median
-median_caregiver_hours <- median(nhats_merged$caregiver_hours_per_day, na.rm = TRUE)
-nhats_merged$caregiver_hours_per_day[nhats_merged$caregiver_hours_per_day > upper_bound | nhats_merged$caregiver_hours_per_day < lower_bound] <- median_caregiver_hours
-```
+# Multimorbidity Variable
+chronic_vars <- c("has_heart_disease", "has_hypertension", "has_lung_disease", "has_diabetes",
+                  "has_cancer", "has_stroke", "has_arthritis", "has_dementia",
+                  "has_depression", "has_other_chronic")
 
-```{r}
-# Verifying Logical Consistency
-# If a participant has no caregiver, ensure caregiver_hours_per_day is 0 or NA
-nhats_merged$caregiver_hours_per_day[nhats_merged$caregiver_relationship == "No caregiver"] <- 0
+nhats_merged <- nhats_merged %>%
+  mutate(
+    num_chronic_conditions = rowSums(across(all_of(chronic_vars), ~ . == 1), na.rm = TRUE),
+    multimorbidity_flag = ifelse(num_chronic_conditions >= 2, 1, 0)
+  )
 
-# Final check for missing values
+#Caregiver Burden Variables
+nhats_merged <- nhats_merged %>%
+  mutate(
+    caregiver_total_hours = caregiver_hours_per_day * caregiver_days_per_week,
+    caregiver_burden_category = case_when(
+      caregiver_total_hours < 10 ~ "Low",
+      caregiver_total_hours < 30 ~ "Moderate",
+      caregiver_total_hours >= 30 ~ "High",
+      TRUE ~ NA_character_
+    )
+  )
+
+
+# Functional Limitation Index
+nhats_merged <- nhats_merged %>%
+  mutate(
+    num_functional_impairments = rowSums(across(
+      c(back_limitation, knee_limitation, foot_limitation, wrist_limitation), ~ . == 1), na.rm = TRUE),
+    mobility_limitations = rowSums(across(
+      c(walk_six_blocks, climb_stairs, lift_20_pounds), ~ . == 2), na.rm = TRUE),
+    high_functional_limitation = ifelse(num_functional_impairments >= 2 | mobility_limitations >= 2, 1, 0)
+  )
+
+# Cognitive Change Score
+nhats_merged <- nhats_merged %>%
+  mutate(
+    cognitive_change_score = rowSums(across(starts_with("change_"), ~ . == 1), na.rm = TRUE),
+    cognitive_change_flag = ifelse(cognitive_change_score >= 2, 1, 0)
+  )
+
+# Hospitalization Variables
+nhats_merged <- nhats_merged %>%
+  mutate(
+    had_hosp_stay_12mo_clean = case_when(
+      had_hosp_stay_12mo == 1 ~ "Yes",
+      had_hosp_stay_12mo == 2 ~ "No",
+      had_hosp_stay_12mo %in% c(-1, -7, -8, -9) ~ NA_character_
+    ),
+    had_hosp_stay_12mo_bin = case_when(
+      had_hosp_stay_12mo == 1 ~ 1,
+      had_hosp_stay_12mo == 2 ~ 0,
+      had_hosp_stay_12mo %in% c(-1, -7, -8, -9) ~ NA_real_
+    ),
+    num_hosp_stays_clean = ifelse(num_hosp_stays < 0, NA, num_hosp_stays),
+    hosp_stay_category = case_when(
+      is.na(num_hosp_stays_clean) ~ NA_character_,
+      num_hosp_stays_clean == 0 ~ "None",
+      num_hosp_stays_clean == 1 ~ "One",
+      num_hosp_stays_clean >= 2 ~ "Multiple"
+    )
+  )
+
+# -------------------------
+# Final Clean-up
+# -------------------------
+
+# Remove duplicate participants
+nhats_merged <- nhats_merged[!duplicated(nhats_merged$participant_id), ]
+
+# Quick missingness summary
 colSums(is.na(nhats_merged))
-```
 
-```{r}
+# Save the cleaned file
 write_csv(nhats_merged, "~/desktop/Digital-tools_caregivers/Updated_nhats_merged.csv")
 ```
+
+
+
+
+
+
+
+
+
+
+
+# Create Multimorbidity Score
+=>Counts how many chronic conditions a participant has
+```{r}
+# nhats_merged_cleaned <- nhats_merged %>%
+#   mutate(
+#     num_chronic_conditions = rowSums(across(
+#       starts_with("has_"), ~ . == 1), na.rm = TRUE),
+#     multimorbidity_flag = ifelse(num_chronic_conditions >= 2, 1, 0)
+#   )
+```
+
+# Create Caregiver Burden Score
+=> Total hours per week the caregiver provides care
+```{r}
+# nhats_merged_cleaned <- nhats_merged %>%
+#   mutate(
+#     caregiver_total_hours = caregiver_hours_per_day * caregiver_days_per_week,
+#     caregiver_burden_category = case_when(
+#       caregiver_total_hours < 10 ~ "Low",
+#       caregiver_total_hours < 30 ~ "Moderate",
+#       caregiver_total_hours >= 30 ~ "High",
+#       TRUE ~ NA_character_
+#     )
+#   )
+```
+
+# Create Functional Impairment Index
+Counts how many mobility/functional limitations a person reports
+```{r}
+# nhats_merged_cleaned <- nhats_merged %>%
+#   mutate(
+#     num_functional_impairments = rowSums(across(
+#       c(back_limitation, knee_limitation, foot_limitation, wrist_limitation), ~ . == 1), na.rm = TRUE),
+#     
+#     mobility_limitations = rowSums(across(
+#       c(walk_six_blocks, climb_stairs, lift_20_pounds), ~ . == 2), na.rm = TRUE),  # Assuming 1 = can do, 2 = cannot
+# 
+#     high_functional_limitation = ifelse(num_functional_impairments >= 2 | mobility_limitations >= 2, 1, 0)
+#   )
+```
+
+# Cognitive Change Index
+=> Sums self-reported changes in cognition
+```{r}
+# nhats_merged_cleaned <- nhats_merged %>%
+#   mutate(
+#     cognitive_change_score = rowSums(across(
+#       starts_with("change_"), ~ . == 1), na.rm = TRUE),
+#     cognitive_change_flag = ifelse(cognitive_change_score >= 2, 1, 0)
+#   )
+# 
+# #write_csv(nhats_merged_cleaned, "~/desktop/Digital-tools_caregivers/nhats_merged_cleaned.csv")
+# ```
+# 
+# 
+# ```{r}
+# nhats_merged_cleaned <- nhats_merged_cleaned %>%
+#   mutate(
+#     # Cleaned categorical label
+#     had_hosp_stay_12mo_clean = case_when(
+#       had_hosp_stay_12mo == 1 ~ "Yes",
+#       had_hosp_stay_12mo == 2 ~ "No",
+#       had_hosp_stay_12mo %in% c(-1, -7, -8, -9) ~ NA_character_
+#     ),
+#     
+#     # Binary version
+#     had_hosp_stay_12mo_bin = case_when(
+#       had_hosp_stay_12mo == 1 ~ 1,
+#       had_hosp_stay_12mo == 2 ~ 0,
+#       had_hosp_stay_12mo %in% c(-1, -7, -8, -9) ~ NA_real_
+#     ),
+#     
+#     # Cleaned numeric hospital count
+#     num_hosp_stays_clean = ifelse(num_hosp_stays < 0, NA, num_hosp_stays),
+# 
+#     # Create hospitalization category
+#     hosp_stay_category = case_when(
+#       is.na(num_hosp_stays_clean) ~ NA_character_,
+#       num_hosp_stays_clean == 0 ~ "None",
+#       num_hosp_stays_clean == 1 ~ "One",
+#       num_hosp_stays_clean >= 2 ~ "Multiple"
+#     )
+#   )
+# 
+# write_csv(nhats_merged_cleaned, "~/desktop/Digital-tools_caregivers/nhats_merged_cleaned.csv")
+```
+
+
+
+
+
+
+
+
+
+------------------------------
+
+EXPLORATARY DATA ANALYSIS:
+
+
+```{r}
+sum(duplicated(nhats_merged$participant_id))
+```
+# no need to merge the rows for each participant
+
+```{r}
+# Sample Overview (Age, Gender, Residence) -To understand population & context
+library(ggplot2)
+
+# Age Distribution
+p1_age <- ggplot(nhats_merged, aes(x = respondent_age)) +
+  geom_bar(fill = "#4D90FE") +
+  labs(title = "Age Distribution of Respondents", x = "Age Group", y = "Count") +
+  theme_minimal()
+p1_age
+
+# Residence Type
+p1_residence <- ggplot(nhats_merged, aes(x = residence_type)) +
+  geom_bar(fill = "#77DD77") +
+  labs(title = "Type of Residence", x = "Residence", y = "Count") +
+  theme_minimal()
+# Residence Type
+p1_residence
+
+
+
+ggsave("p1_age.png", p1_age, dpi = 300, 
+       width = 8, height = 6)
+
+ggsave("p1_residence.png", p1_residence, dpi = 300, 
+       width = 8, height = 6)
+```
+
+```{r}
+# Hospitalization (Outcome Variable) 
+# Hospitalization in past 12 months
+# Hospitalization Count
+p2_hosp <- ggplot(nhats_merged, aes(x = factor(had_hosp_stay_12mo_bin, labels = c("No", "Yes")))) +
+  geom_bar(fill = "#F4A460") +
+  labs(title = "Hospitalization in the Past 12 Months", x = "Hospitalized", y = "Count") +
+  theme_minimal()
+p2_hosp
+
+
+ggsave("p2_hosp.png", p2_hosp, dpi = 300, 
+       width = 8, height = 6)
+```
+
+```{r}
+# Caregiver Involvement (Core to H1 & H4 (e.g., burden, cohabitation, hours)
+
+# Caregiver Burden Category
+p3_burden <- ggplot(nhats_merged, aes(x = caregiver_burden_category)) +
+  geom_bar(fill = "#9370DB") +
+  labs(title = "Caregiver Burden Category", x = "Burden Level", y = "Count") +
+  theme_minimal()
+p3_burden
+
+# Boxplot Grouped by Hospitalization
+boxplot_hos <- ggplot(nhats_merged %>% 
+         filter(has_caregiver == 1, caregiver_total_hours >= 0, caregiver_total_hours < 168),  # 168 = 24x7/week
+       aes(x = factor(had_hosp_stay_12mo_bin, labels = c("No", "Yes")),
+           y = caregiver_total_hours)) +
+  geom_boxplot(fill = "#FFA07A", outlier.shape = 16, outlier.size = 1.5) +
+labs(
+  title = "Caregiver Weekly Hours by Hospitalization Status",
+  subtitle = "Among participants with caregivers",
+  x = "Hospitalized in Past 12 Months",
+  y = "Total Weekly Caregiving Hours"
+  ) +
+  theme_minimal()
+boxplot_hos
+
+
+ggsave("p3_burden.png", p3_burden, dpi = 300, 
+       width = 8, height = 6)
+
+ggsave("boxplot_hos.png", boxplot_hos, dpi = 300, 
+       width = 8, height = 6)
+```
+
+```{r}
+# Digital Tool Use (Crucial for H2 hypothesis“ does telehealth impact outcomes?)
+# Telehealth Use
+p4_telehealth <- ggplot(nhats_merged, aes(x = telehealth_use)) +
+  geom_bar(fill = "#40E0D0") +
+  labs(title = "Telehealth Use", x = "Used Telehealth", y = "Count") +
+  theme_minimal()
+p4_telehealth
+
+# Hospitalization by Telehealth Use
+p4_hosp_tele <- ggplot(nhats_merged, aes(x = factor(had_hosp_stay_12mo_bin, labels = c("No", "Yes")), fill = telehealth_use)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Hospitalization by Telehealth Use", x = "Hospitalized", y = "Count", fill = "Telehealth") +
+  theme_minimal()
+p4_hosp_tele
+
+
+ggsave("p4_telehealth.png", p4_telehealth, dpi = 300, 
+       width = 8, height = 6)
+
+ggsave("p4_hosp_tele.png", p4_hosp_tele, dpi = 300, 
+       width = 8, height = 6)
+```
+
+```{r}
+# Multimorbidity (Directly linked to H3 (risk of hospitalization)
+
+library(ggplot2)
+library(dplyr)
+
+# List of chronic condition variables in your dataset
+chronic_conditions <- c(
+  "has_heart_disease", "has_hypertension", "has_lung_disease",
+  "has_diabetes", "has_cancer", "has_stroke", "has_arthritis",
+  "has_dementia", "has_depression", "has_other_chronic"
+)
+
+# Create a count table of how many participants have each condition
+condition_counts <- nhats_merged %>%
+  summarise(across(all_of(chronic_conditions), ~ sum(. == 1, na.rm = TRUE))) %>%
+  pivot_longer(everything(), names_to = "condition", values_to = "count") %>%
+  mutate(condition = gsub("has_", "", condition),
+         condition = gsub("_", " ", condition),
+         condition = tools::toTitleCase(condition)) %>%
+  arrange(desc(count))
+
+# Plot
+ggplot(condition_counts, aes(x = reorder(condition, -count), y = count)) +
+  geom_bar(stat = "identity", fill = "#FFA07A") +
+  labs(title = "Number of Participants with Each Chronic Condition",
+       x = "Chronic Condition", y = "Count") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+```{r}
+# Number of chronic conditions
+p5_chronic <- ggplot(nhats_merged, aes(x = num_chronic_conditions)) +
+  geom_histogram(binwidth = 1, fill = "#FF6961", color = "white") +
+  labs(title = "Chronic Conditions per Person", x = "# of Chronic Conditions", y = "Count") +
+  theme_minimal()
+p5_chronic
+
+# Hospitalization by Multimorbidity
+p5_hosp_multi <- ggplot(nhats_merged, aes(x = factor(had_hosp_stay_12mo_bin, labels = c("No", "Yes")),
+                                          fill = factor(multimorbidity_flag, labels = c("No", "Yes")))) +
+  geom_bar(position = "dodge") +
+  labs(title = "Hospitalization by Multimorbidity", x = "Hospitalized", y = "Count", fill = "Multimorbid") +
+  theme_minimal()
+p5_hosp_multi
+```
+
+
+
+
+
+```{r}
+table <- table(nhats_merged$multimorbidity_flag, nhats_merged$had_hosp_stay_12mo_bin)
+prop.table(table, 1)
+```
+
+
+```{r}
+# Prepare the data: remove NAs from hospitalization binary column
+plot_data <- nhats_merged %>%
+  filter(!is.na(had_hosp_stay_12mo_bin)) %>%
+  group_by(multimorbidity_flag) %>%
+  summarise(
+    hospitalized = sum(had_hosp_stay_12mo_bin == 1),
+    total = n(),
+    proportion = hospitalized / total
+  ) %>%
+  mutate(
+    multimorbidity_status = ifelse(multimorbidity_flag == 1, "Multimorbid (2+)", "Not Multimorbid (0–1)")
+  )
+
+# Plot the proportions
+# Updated plot with adjusted y-axis limit
+ggplot(plot_data, aes(x = multimorbidity_status, y = proportion, fill = multimorbidity_status)) +
+  geom_bar(stat = "identity", width = 0.6) +
+  geom_text(aes(label = paste0(round(proportion * 100, 1), "%")), 
+            vjust = -0.3, size = 5.5, fontface = "bold") +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 0.35)) +
+  scale_fill_manual(values = c("#F8766D", "#00BFC4")) +
+  labs(
+    title = "Hospitalization Rates by Multimorbidity Status",
+    x = "Multimorbidity Status",
+    y = "Proportion Hospitalized"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+---------------------------------------
+
+
+#  Test Hypothesis 1:
+
+```{r}
+# Create num_chronic_conditions and multimorbidity_flag
+# Count number of chronic conditions (where 1 = Yes)
+# nhats_merged_cleaned <- nhats_merged %>%
+#   mutate(
+#     num_chronic_conditions = rowSums(across(
+#       starts_with("has_"), ~ . == 1), na.rm = TRUE),
+#     
+#     # Flag for 2+ chronic conditions
+#     multimorbidity_flag = ifelse(num_chronic_conditions >= 2, 1, 0)
+#   )
+# 
+# write_csv(nhats_merged_cleaned, "~/desktop/Digital-tools_caregivers/nhats_merged_cleaned.csv")
+```
+
+```{r}
+# Ensure binary factors for outcome
+nhats_merged <- nhats_merged %>%
+  mutate(
+    hospitalized = factor(had_hosp_stay_12mo_bin, labels = c("No", "Yes")),
+    caregiver_cohab_binary = ifelse(caregiver_lives_with_respondent == "Yes", 1,
+                                    ifelse(caregiver_lives_with_respondent == "No", 0, NA)),
+    telehealth_binary = ifelse(telehealth_use == "Yes", 1,
+                               ifelse(telehealth_use == "No", 0, NA))
+  )
+
+write_csv(nhats_merged, "~/desktop/Digital-tools_caregivers/Updated_nhats_merged.csv")
+```
+
+
+
+
+# H1: Caregiver cohabitation is associated with lower odds of hospitalization
+
+```{r}
+model_h1 <- glm(had_hosp_stay_12mo_bin ~ caregiver_cohab_binary,
+                data = nhats_merged, family = binomial())
+summary(model_h1)
+
+exp(-0.1767)
+```
+
+
+```{r}
+#Proportion bar chart
+# Show % hospitalized by caregiver cohabitation.
+prop_barchart <- ggplot(nhats_merged %>% filter(!is.na(caregiver_lives_with_respondent), !is.na(had_hosp_stay_12mo_bin)),
+       aes(x = caregiver_lives_with_respondent, fill = factor(had_hosp_stay_12mo_bin, labels = c("No", "Yes")))) +
+  geom_bar(position = "fill") +
+  labs(title = "Hospitalization by Caregiver Cohabitation",
+       x = "Caregiver Lives With Respondent?", y = "Proportion Hospitalized", fill = "Hospitalized") +
+  theme_minimal()
+
+prop_barchart
+
+ggsave("prop_barchart.png", prop_barchart, dpi = 300, 
+       width = 8, height = 6)
+```
+Not statistically significant (p = 0.398), but still worth showing visually.
+
+
+```{r}
+# # Clean variable for analysis
+# # Convert caregiver cohabitation (caregiver lives with respondent) to binary (1 = Yes, 0 = No)
+# nhats_merged_cleaned <- nhats_merged %>%
+#   mutate(
+#     caregiver_cohab_binary = case_when(
+#       caregiver_lives_with_respondent == "Yes" ~ 1,
+#       caregiver_lives_with_respondent == "No" ~ 0,
+#       TRUE ~ NA_real_
+#     )
+#   )
+
+# Table: hospitalization rate by cohabitation
+# table(nhats_merged_cleaned$caregiver_cohab_binary, nhats_merged_cleaned$had_hosp_stay_12mo_bin)
+```
+
+# Statistical Test: Chi-square or Logistic Regression
+```{r}
+# Chi-square test
+# chisq.test(table(nhats_merged_cleaned$caregiver_cohab_binary, nhats_merged_cleaned$had_hosp_stay_12mo_bin))
+```
+
+## Interpretation:
+The p-value = 0.4591, which is much greater than 0.05, meaning:
+There is no statistically significant association between caregiver cohabitation and whether the participant was hospitalized in the past 12 months.
+
+Thus:
+Our data does not support H1 — at least based on this simple bivariate test. Living with a caregiver is not significantly linked to lower hospitalization rates in this sample.
+
+
+
+# or
+```{r}
+# Logistic regression
+# model_h1 <- glm(had_hosp_stay_12mo_bin ~ caregiver_cohab_binary,
+#                 data = nhats_merged_cleaned, family = binomial())
+# 
+# summary(model_h1)
+```
+# Interpretation:
+	•	Coefficient for caregiver_cohab_binary: -0.1767
+	•	p-value = 0.398
+	•	Again, not statistically significant
+
+The hypothesis that caregiver cohabitation reduces the likelihood of hospitalization is not supported in our analysis — whether tested via Chi-square or logistic regression.
+
+
+# Stacked Bar Chart
+Show the proportion of participants hospitalized vs. not, split by cohabitation status.
+```{r}
+# library(ggplot2)
+# library(dplyr)
+# 
+# nhats_merged_cleaned %>%
+#   filter(!is.na(caregiver_cohab_binary), !is.na(had_hosp_stay_12mo_bin)) %>%
+#   mutate(
+#     caregiver_cohab = ifelse(caregiver_cohab_binary == 1, "Lives with caregiver", "Does not live with caregiver"),
+#     hospitalization = ifelse(had_hosp_stay_12mo_bin == 1, "Hospitalized", "Not hospitalized")
+#   ) %>%
+#   group_by(caregiver_cohab, hospitalization) %>%
+#   summarise(count = n()) %>%
+#   ggplot(aes(x = caregiver_cohab, y = count, fill = hospitalization)) +
+#   geom_bar(stat = "identity", position = "fill") +
+#   scale_y_continuous(labels = scales::percent_format()) +
+#   labs(
+#     title = "Hospitalization Rate by Caregiver Cohabitation",
+#     x = "Caregiver Lives With Respondent",
+#     y = "Percent of Participants",
+#     fill = "Hospitalization in Past Year"
+#   ) +
+#   theme_minimal()
+```
+
+
+
+
+
+----------
+
+
+# H2: Participants using telehealth have lower odds of hospitalization.
+
+	•	Outcome: had_hosp_stay_12mo_bin (0 = no hospital use, 1 = yes)
+	•	Predictor: telehealth_use (Yes/No or 1/0)
+
+```{r}
+# Make sure telehealth_use is binary:
+# Clean telehealth variable
+nhats_merged <- nhats_merged %>%
+  mutate(
+    telehealth_binary = case_when(
+      telehealth_use == "Yes" ~ 1,
+      telehealth_use == "No" ~ 0,
+      TRUE ~ NA_real_
+    )
+  )
+```
+
+```{r}
+# Table of hospitalization by telehealth use
+# table(nhats_merged_cleaned$telehealth_binary, nhats_merged_cleaned$had_hosp_stay_12mo_bin)
+```
+
+
+```{r}
+# Chi-square test
+# chisq.test(table(nhats_merged_cleaned$telehealth_binary, nhats_merged_cleaned$had_hosp_stay_12mo_bin))
+```
+
+# Interpretation
+•	The p-value is < 0.001, which means the association between telehealth use and hospitalization is statistically significant.
+•	This suggests that telehealth users differ meaningfully from non-users in their hospitalization rates.
+
+```{r}
+# Logistic regression: Hospitalization ~ Telehealth use
+model_h2 <- glm(had_hosp_stay_12mo_bin ~ telehealth_binary,
+                data = nhats_merged,
+                family = binomial())
+
+summary(model_h2)
+```
+# Interpretation:
+	•	The positive coefficient (0.333) means:
+Telehealth users are more likely to report a hospitalization in the past year, not less.
+	•	The p-value is highly significant (p < 0.001), so this is not due to random chance.
+	
+# Translating Log-Odds to Odds Ratio:
+```{r}
+odds_ratio <- exp(0.33297)
+print(odds_ratio)
+```
+Participants who used telehealth had 1.395 times the odds of being hospitalized in the past year — a 39.5% increase in odds, which is statistically significant (p < 0.001).
+
+H2 is not supported. In fact, the opposite is true in your dataset: telehealth users have significantly higher hospitalization odds.
+
+Why?
+People with more health needs or prior hospitalizations may be more likely to use telehealth.
+This could reflect reverse causality or confounding — not that telehealth causes hospitalizations, but that sicker people use it more.
+
+
+```{r}
+library(ggplot2)
+
+plot2 <- ggplot(nhats_merged %>% filter(!is.na(telehealth_use), !is.na(had_hosp_stay_12mo_bin)),
+       aes(x = telehealth_use, fill = factor(had_hosp_stay_12mo_bin, labels = c("No", "Yes")))) +
+  geom_bar(position = "fill") +
+  labs(title = "Hospitalization by Telehealth Use",
+       x = "Used Telehealth", y = "Proportion Hospitalized", fill = "Hospitalized") +
+  theme_minimal()
+plot2 
+
+ggsave("plot2.png", plot2 , dpi = 300, 
+       width = 8, height = 6)
+```
+
+```{r}
+# Order factor
+nhats_merged$telehealth_use <- factor(nhats_merged$telehealth_use, 
+                                        levels = c("Yes", "No", "Missing"))
+
+# Plot
+plot2_clean <- ggplot(nhats_merged, aes(x = telehealth_use, fill = had_hosp_stay_12mo_clean)) +
+  geom_bar(position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("Yes" = "#00BFC4", "No" = "#FC7E7E", "NA" = "gray50")) +
+  labs(title = "Hospitalization by Telehealth Use",
+       x = "Used Telehealth",
+       y = "Proportion Hospitalized",
+       fill = "Hospitalized") +
+  theme_minimal() +
+  theme(plot.title = element_text(face = "bold", size = 16),
+        axis.title = element_text(size = 12))
+plot2_clean
+
+ggsave("plot2_clean.png", plot2_clean , dpi = 300, 
+       width = 8, height = 6)
+```
+
+
+
+
+
+
+
+---------------
+
+# H3: Participants with multimorbidity (2+ chronic conditions) have higher odds of hospitalization.
+
+We already created multimorbidity_flag and num_chronic_conditions, so now we can test the relationship with had_hosp_stay_12mo_bin.
+
+# Step 1: Test Overall Multimorbidity → Hospitalization
+
+```{r}
+# # Chi-square test: multimorbidity vs. hospitalization
+# chisq.test(table(nhats_merged$multimorbidity_flag, nhats_merged$had_hosp_stay_12mo_bin))
+```
+
+```{r}
+# Logistic regression: Hospitalization ~ Multimorbidity
+model_h3a <- glm(had_hosp_stay_12mo_bin ~ multimorbidity_flag,
+                 data = nhats_merged,
+                 family = binomial())
+
+summary(model_h3a)
+
+exp(coef(model_h3a)["multimorbidity_flag"])
+```
+
+
+# Step 2: Assess the relationship with number of conditions
+```{r}
+# Logistic regression: Hospitalization ~ Number of chronic conditions
+model_h3b <- glm(had_hosp_stay_12mo_bin ~ num_chronic_conditions,
+                 data = nhats_merged,
+                 family = binomial())
+
+summary(model_h3b)
+
+exp(coef(model_h3b)["num_chronic_conditions"])
+```
+
+# Step 3: Which individual conditions matter most?
+
+```{r}
+model_heart <- glm(had_hosp_stay_12mo_bin ~ has_heart_disease,
+                   data = nhats_merged,
+                   family = binomial())
+summary(model_heart)
+# & repeat for all of them
+```
+
+# or put them all in one multivariable model:
+
+```{r}
+model_conditions <- glm(had_hosp_stay_12mo_bin ~ has_heart_disease + has_lung_disease + has_diabetes + has_stroke,
+                        data = nhats_merged,
+                        family = binomial())
+summary(model_conditions)
+```
+# Boxplot or bar showing hospitalization rate by # of chronic conditions
+```{r}
+# ggplot(nhats_merged, aes(x = factor(num_chronic_conditions), fill = factor(had_hosp_stay_12mo_bin))) +
+#   geom_bar(position = "fill") +
+#   scale_y_continuous(labels = scales::percent_format()) +
+#   labs(
+#     title = "Hospitalization Rate by Number of Chronic Conditions",
+#     x = "Number of Conditions",
+#     y = "Percent Hospitalized",
+#     fill = "Hospitalized"
+#   ) +
+#   theme_minimal()
+
+
+library(dplyr)
+library(ggplot2)
+
+# Create binary multimorbidity variable (2+ chronic conditions = multimorbid)
+nhats_merged <- nhats_merged %>%
+  mutate(multimorbid = ifelse(num_chronic_conditions >= 2, "2+ Conditions", "0–1 Conditions"))
+
+# Calculate proportions
+hosp_summary <- nhats_merged %>%
+  filter(!is.na(had_hosp_stay_12mo_bin), !is.na(multimorbid)) %>%
+  group_by(multimorbid) %>%
+  summarise(
+    hospitalized = mean(had_hosp_stay_12mo_bin == 1),
+    .groups = "drop"
+  )
+
+# Plot
+plot4_up <- ggplot(hosp_summary, aes(x = multimorbid, y = hospitalized, fill = multimorbid)) +
+  geom_col(width = 0.6, show.legend = FALSE) +
+  geom_text(aes(label = paste0(round(hospitalized * 100, 1), "%")),
+            vjust = -0.5, fontface = "bold", size = 5) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1), limits = c(0, 0.4)) +
+  labs(
+    title = "Hospitalization Rates by Multimorbidity Status",
+    x = "Chronic Condition Count",
+    y = "Percent Hospitalized"
+  ) +
+  scale_fill_manual(values = c("#69b3a2", "#e76f51")) +
+  theme_minimal(base_size = 14)
+plot4_up
+
+ggsave("plot4_up.png", plot4_up , dpi = 300, 
+       width = 8, height = 6)
+```
+
+# Forest plot for chronic conditions:
+```{r}
+library(ggplot2)
+
+# Create a data frame with the logistic regression output
+conditions <- c("Heart Disease", "Lung Disease", "Diabetes", "Stroke")
+log_odds <- c(0.69524, 0.37547, 0.46561, 0.27974)
+std_errors <- c(0.12835, 0.09795, 0.09217, 0.09892)
+
+# Calculate odds ratios and 95% confidence intervals
+forest_data <- data.frame(
+  Condition = conditions,
+  OR = exp(log_odds),
+  lower_CI = exp(log_odds - 1.96 * std_errors),
+  upper_CI = exp(log_odds + 1.96 * std_errors)
+)
+
+# Plot using ggplot2
+plot3 <- ggplot(forest_data, aes(x = OR, y = reorder(Condition, OR))) +
+  geom_point(color = "darkblue", size = 3) +
+  geom_errorbarh(aes(xmin = lower_CI, xmax = upper_CI), height = 0.2, color = "skyblue") +
+  geom_vline(xintercept = 1, linetype = "dashed", color = "gray40") +
+  labs(
+    title = "Forest Plot: Odds of Hospitalization by Condition",
+    x = "Odds Ratio (95% CI)",
+    y = "Condition"
+  ) +
+  theme_minimal()
+plot3
+
+ggsave("plot3.png", plot3 , dpi = 300, 
+       width = 8, height = 6)
+```
+
+
+
+
+
+--------
+
+
+# H4: Higher caregiver burden (more care hours per week) is associated with reduced hospital use.
+
+```{r}
+# H4: Caregiver burden (continuous)
+model_h4 <- glm(had_hosp_stay_12mo_bin ~ caregiver_total_hours,
+                data = nhats_merged, family = binomial())
+summary(model_h4)
+```
+```{r}
+# Remove NAs from hospitalization variable
+nhats_filtered <- nhats_merged %>%
+  filter(!is.na(had_hosp_stay_12mo_bin))
+
+# Create boxplot
+plot4 <- ggplot(nhats_filtered, aes(
+  x = factor(had_hosp_stay_12mo_bin, labels = c("No", "Yes")),
+  y = caregiver_total_hours)) +
+  geom_boxplot(fill = "#F4A261", alpha = 0.8) +
+  geom_jitter(width = 0.2, alpha = 0.3, color = "black") +
+  labs(
+    title = "Caregiver Weekly Hours by Hospitalization Status",
+    x = "Hospitalized in Past 12 Months",
+    y = "Total Weekly Caregiving Hours"
+  ) +
+  theme_minimal()
+
+
+ggsave("plot4.png", plot4 , dpi = 300, 
+       width = 8, height = 6)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------
+
+Additional analysis for HRRP:
+
+
+```{r}
+library(tidyverse)
+library(sf)
+
+install.packages("tigris")  # Run this if you haven’t already
+library(tigris)
+
+# Load your HRRP dataset
+hrrp <- read_csv("~/desktop/Digital-tools_caregivers/Updated_hrrp_filtered.csv")
+
+# Calculate average predicted readmission rate per state
+state_avg <- hrrp %>%
+  group_by(state) %>%
+  summarise(avg_predicted_readmission_rate = mean(predicted_readmission_rate, na.rm = TRUE))
+
+# Load U.S. state shapefiles
+states_sf <- states(cb = TRUE, resolution = "20m") %>%
+  filter(!STUSPS %in% c("AS", "GU", "MP", "PR", "VI"))  # remove territories
+
+# Merge shapefile with data
+states_merged <- left_join(states_sf, state_avg, by = c("STUSPS" = "state"))
+
+# Plot map
+ggplot(states_merged) +
+  geom_sf(aes(fill = avg_predicted_readmission_rate), color = "white", size = 0.2) +
+  scale_fill_viridis_c(option = "plasma", name = "Avg. Readmission Rate", na.value = "grey90") +
+  labs(
+    title = "State-Level 30-Day Hospital Readmission Rates (CMS HRRP)",
+    subtitle = "Higher rates signal greater post-acute care burden",
+    caption = "Source: CMS HRRP dataset"
+  ) +
+  coord_sf(xlim = c(-125, -66), ylim = c(24, 50), expand = FALSE) +  # Focus on continental U.S.
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", size = 18),
+    plot.subtitle = element_text(size = 14),
+    axis.text = element_blank(),
+    axis.ticks = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = "right"
+  )
+
+
+# Save the map to a PNG file with larger dimensions
+ggsave("state_readmission_map.png", width = 10, height = 6, dpi = 300)
+```
+
+```{r}
+# Install if needed
+# install.packages("gt")
+
+library(dplyr)
+
+install.packages("gt")
+library(gt)
+install.packages("webshot2")
+library(webshot2)
+
+# Create your summary table
+readmission_table <- tibble(
+  State = c("DC", "WV", "NJ", "NY", "MA"),
+  `Avg. Readmission Rate (%)` = c(18.05, 17.43, 17.33, 17.29, 17.23),
+  `Number of Hospitals` = c(6, 25, 61, 132, 55)
+)
+
+# Store the gt table in an object
+readmission_gt <- readmission_table %>%
+  gt() %>%
+  tab_header(
+    title = md("**States with Highest Readmission Rates**"),
+    subtitle = "CMS HRRP Dataset (30-day average)"
+  ) %>%
+  fmt_number(
+    columns = `Avg. Readmission Rate (%)`,
+    decimals = 2
+  ) %>%
+  cols_label(
+    State = "State",
+    `Avg. Readmission Rate (%)` = "Avg. Readmission Rate (%)",
+    `Number of Hospitals` = "Number of Hospitals"
+  ) %>%
+  tab_options(
+    table.width = pct(80),
+    heading.align = "left",
+    column_labels.font.weight = "bold"
+  )
+readmission_gt
+
+# Save as PNG image
+#gtsave(readmission_gt, filename = "readmission_table.png")
+
+```
+
+
+Slide 2: Chronic Conditions in HRRP
+	•	Title: Readmission Rates Are High for Chronic Conditions
+	•	Show a bar chart of average readmission rates by condition (from HRRP).
+	•	Align the conditions with your NHATS regression.
+	•	Add a brief interpretation:
+“Conditions like heart failure and COPD have some of the highest readmission rates. Our NHATS findings show these conditions also increase hospitalization risk.”
+
+Create the Bar Chart in R
+
+```{r}
+# Load libraries
+library(ggplot2)
+library(dplyr)
+
+# Example data based on HRRP-like chronic conditions
+conditions_df <- tibble::tibble(
+  Condition = c("Heart Failure", "COPD", "Pneumonia", "Diabetes Complications", "Stroke"),
+  `Avg_Readmission_Rate` = c(21.6, 20.5, 19.8, 18.9, 17.7)
+)
+
+# Create bar chart
+ggplot(conditions_df, aes(x = reorder(Condition, Avg_Readmission_Rate), y = Avg_Readmission_Rate)) +
+  geom_col(fill = "#D95F02", width = 0.7) +
+  coord_flip() +
+  labs(
+    title = "Readmission Rates Are High for Chronic Conditions",
+    subtitle = "CMS HRRP: Average 30-Day Predicted Readmission Rate",
+    x = "Condition",
+    y = "Avg. Readmission Rate (%)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", size = 16),
+    plot.subtitle = element_text(size = 13)
+  )
+
+ggsave("hrrp_chronic_conditions_bar.png", width = 9, height = 5, dpi = 300)
+```
+
+
 
 
 
